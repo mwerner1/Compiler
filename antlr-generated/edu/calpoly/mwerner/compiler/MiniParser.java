@@ -1,4 +1,4 @@
-// $ANTLR 3.5.2 C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\Mini.g 2014-05-23 15:59:23
+// $ANTLR 3.5.2 C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\Mini.g 2014-06-10 15:52:40
 
    package edu.calpoly.mwerner.compiler;
 
@@ -165,7 +165,7 @@ public class MiniParser extends Parser {
 			if ( state.backtracking==0 ) stream_EOF.add(EOF1);
 
 			// AST REWRITE
-			// elements: d, t, f
+			// elements: t, f, d
 			// token labels: 
 			// rule labels: f, retval, d, t
 			// token list labels: 
@@ -732,7 +732,7 @@ public class MiniParser extends Parser {
 			if ( state.backtracking==0 ) stream_ID.add(i);
 
 			// AST REWRITE
-			// elements: i, t
+			// elements: t, i
 			// token labels: i
 			// rule labels: retval, t
 			// token list labels: 
@@ -1067,7 +1067,7 @@ public class MiniParser extends Parser {
 			if ( state.backtracking==0 ) stream_SEMI.add(SEMI18);
 
 			// AST REWRITE
-			// elements: t, ilist
+			// elements: ilist, t
 			// token labels: 
 			// rule labels: retval, t, ilist
 			// token list labels: 
@@ -1399,7 +1399,7 @@ public class MiniParser extends Parser {
 			if ( state.backtracking==0 ) stream_RBRACE.add(RBRACE25);
 
 			// AST REWRITE
-			// elements: s, r, p, d, id, FUN
+			// elements: d, r, s, p, id, FUN
 			// token labels: id
 			// rule labels: retval, d, s, r, p
 			// token list labels: 
@@ -2192,7 +2192,7 @@ public class MiniParser extends Parser {
 			if ( state.backtracking==0 ) stream_SEMI.add(SEMI46);
 
 			// AST REWRITE
-			// elements: ASSIGN, l, e
+			// elements: e, ASSIGN, l
 			// token labels: 
 			// rule labels: retval, e, l
 			// token list labels: 
@@ -2560,7 +2560,7 @@ public class MiniParser extends Parser {
 			if (state.failed) return retval;
 			if ( state.backtracking==0 ) stream_block.add(b.getTree());
 			// AST REWRITE
-			// elements: e, e, WHILE, b
+			// elements: b, e, e, WHILE
 			// token labels: 
 			// rule labels: retval, e, b
 			// token list labels: 
@@ -2806,7 +2806,7 @@ public class MiniParser extends Parser {
 			if ( state.backtracking==0 ) stream_SEMI.add(SEMI70);
 
 			// AST REWRITE
-			// elements: a, id
+			// elements: id, a
 			// token labels: id
 			// rule labels: retval, a
 			// token list labels: 

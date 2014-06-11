@@ -1,5 +1,7 @@
 package edu.calpoly.mwerner.compiler;
 
+import java.util.Vector;
+
 public class Cmp extends Instruction
 {
 	private String instrName = "cmp";
@@ -44,5 +46,26 @@ public class Cmp extends Instruction
 		{
 			return srcReg2;
 		}
+	}
+	
+	public Vector<Register> getSrc()
+	{
+		Vector<Register> sources = new Vector<Register>();
+		
+		if (srcReg1 != null)
+		{
+			sources.add(srcReg1);
+		}
+		if (srcReg2 != null)
+		{
+			sources.add(srcReg2);
+		}
+		
+		return sources;
+	}
+	
+	public Vector<Register> getTarget()
+	{
+		return null;
 	}
 }

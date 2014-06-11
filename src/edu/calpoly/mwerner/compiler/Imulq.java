@@ -1,5 +1,7 @@
 package edu.calpoly.mwerner.compiler;
 
+import java.util.Vector;
+
 public class Imulq extends Instruction
 {
 	private String instrName = "imulq";
@@ -31,25 +33,54 @@ public class Imulq extends Instruction
 		{
 			if (srcReg != null)
 			{
-				return instrName + " " + imm.toString() + ", " + srcReg.toString() + ", " + targetReg.toString();
+				return instrName + " $" + imm.toString() + ", " + srcReg.toString() + ", " + targetReg.toString();
 			}
 		}
 		
 		return instrName + " " + srcReg.toString() + ", " + targetReg.toString();
 	}
 
-	public Register getTarget()
-	{
-		return targetReg;
-	}
-	
-	public Register getSource()
-	{
-		return srcReg;
-	}
+//	public Register getTarget()
+//	{
+//		return targetReg;
+//	}
+//	
+//	public Register getSource()
+//	{
+//		return srcReg;
+//	}
 	
 	public Immediate getImm()
 	{
 		return imm;
+	}
+	
+	public Vector<Register> getSrc()
+	{
+		Vector<Register> sources = new Vector<Register>();
+		
+		if (srcReg != null)
+		{
+			sources.add(srcReg);
+		}
+		
+		if (targetReg != null)
+		{
+			sources.add(targetReg);
+		}
+		
+		return sources;
+	}
+	
+	public Vector<Register> getTarget()
+	{
+		Vector<Register> targets = new Vector<Register>();
+		
+		if (targetReg != null)
+		{
+			targets.add(targetReg);
+		}
+		
+		return targets;
 	}
 }

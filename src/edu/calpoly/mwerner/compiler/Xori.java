@@ -24,15 +24,15 @@ public class Xori extends Instruction
 		return instrName + " " + srcReg1.toString() + ", " + imm.toString() + ", " + targetReg.toString();
 	}
 
-	public Register getTarget()
-	{
-		return targetReg;
-	}
-	
-	public Register getSource()
-	{
-		return srcReg1;
-	}
+//	public Register getTarget()
+//	{
+//		return targetReg;
+//	}
+//	
+//	public Register getSource()
+//	{
+//		return srcReg1;
+//	}
 	
 	public Immediate getImmediate()
 	{

@@ -3,11 +3,11 @@ package edu.calpoly.mwerner.compiler;
 public class Del extends Instruction
 {
 	private String instrName = "del";
-	private Register targetReg;
+	private Register reg;
 
-	public Del(Register targetReg)
+	public Del(Register reg)
 	{
-		this.targetReg = targetReg;
+		this.reg = reg;
 	}
 
 	public String getInstr()
@@ -17,7 +17,7 @@ public class Del extends Instruction
 
 	public String toString()
 	{
-		return instrName + " " + targetReg.toString();
+		return instrName + " " + reg.toString();
 	}
 
 }

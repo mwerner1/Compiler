@@ -198,7 +198,7 @@ assignment[String funcName]
 			{
 				error(0, "assignment to struct requires another struct or null");
 			}
-			else if (!(($tp1.t).equals($tp2.t)))
+			else if (!(($tp1.t).equals($tp2.t)) && (!($tp2.t instanceof Struct && $tp1.t instanceof Null)))
 			{
 				System.out.println($tp1.t + " " + $tp2.t);
 				error(0, "assignment types mismatch");
@@ -294,7 +294,9 @@ delete[String funcName]
 ret[String funcName]
 	: ^(RETURN (tp=expression[funcName])?)
 	{
-		if (!(funcs.get(funcName).getRetType().equals($tp.t)))
+		Type returnType = funcs.get(funcName).getRetType();
+		
+		if (!(($tp.t instanceof Null) && returnType instanceof Struct) && !(returnType.equals($tp.t)))
 		{
 			error(0, "incorrect return type from function '" + funcName + "'");
 		}
@@ -311,7 +313,14 @@ ret[String funcName]
 invocation[String funcName] returns [Type t = null]
 	: ^(INVOKE id=ID args=arguments[funcName])
 		{ 
-			if (args.size() != funcs.get($id.text).getParams().size())
+			if (args == null)
+			{
+				if (funcs.get($id.text).getParams().size() != 0)
+				{
+					error($id.line, "Number of args in call to '" + $id + "' is incorrect");
+				}
+			}
+			else if (args.size() != funcs.get($id.text).getParams().size())
 			{
 				error($id.line, "Number of args in call to '" + $id + "' is incorrect");
 			}
@@ -352,24 +361,36 @@ expression[String funcName] returns [Type t = null]
 		}
 	| ^(EQ tp1=expression[funcName] tp2=expression[funcName])
 		{
-			if (!(($tp1.t instanceof Int) && ($tp2.t instanceof Int)) && !(($tp1.t instanceof Struct) && ($tp2.t instanceof Struct)))
+//			if (!(($tp1.t instanceof Int) && ($tp2.t instanceof Int)) && !(($tp1.t instanceof Struct) && ($tp2.t instanceof Struct)))
+//			{
+//				error(0, "'equals' operator requires int or struct operands");
+//			}
+//			else if (!(($tp1.t).equals($tp2.t)))
+//			{
+//				error(0, "'equals' operator requires that operands both be ints or structs");
+//			}
+//			else
+//			{
+//				$t = Type.boolType();
+//			}
+			if (($tp1.t).equals($tp2.t) || ($tp1.t instanceof Struct && $tp2.t instanceof Null))
 			{
-				error(0, "'equals' operator requires int or struct operands");
-			}
-			else if (!(($tp1.t).equals($tp2.t)))
-			{
-				error(0, "'equals' operator requires that operands both be ints or structs");
+				$t = Type.boolType();
 			}
 			else
 			{
-				$t = Type.boolType();
+				error(0, "'equals' operator requires that operands both be same type");
 			}
 		}
 	| ^(LT tp1=expression[funcName] tp2=expression[funcName])
 		{
-			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			{
+//				error(0, "'less than' operation requires int expressions");
+//			}
+			if (!(($tp1.t).equals($tp2.t)))
 			{
-				error(0, "'less than' operation requires int expressions");
+				error(0, "'less than' operator requires that operands both be same type");
 			}
 			else
 			{
@@ -378,9 +399,13 @@ expression[String funcName] returns [Type t = null]
 		}
 	| ^(GT tp1=expression[funcName] tp2=expression[funcName])
 		{
-			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			{
+//				error(0, "'greater than' operation requires int expressions");
+//			}
+			if (!(($tp1.t).equals($tp2.t)))
 			{
-				error(0, "'greater than' operation requires int expressions");
+				error(0, "'greater than' operator requires that operands both be same type");
 			}
 			else
 			{
@@ -389,20 +414,33 @@ expression[String funcName] returns [Type t = null]
 		}
 	| ^(NE tp1=expression[funcName] tp2=expression[funcName])
 		{
-			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
-			{
-				error(0, "'not equals' operation requires int expressions");
-			}
-			else
+//			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			{
+//				error(0, "'not equals' operation requires int expressions");
+//			}
+			if (($tp1.t).equals($tp2.t) || ($tp1.t instanceof Struct && $tp2.t instanceof Null))
 			{
 				$t = Type.boolType();
 			}
+//			if (!(($tp1.t).equals($tp2.t)))
+			else
+			{
+				error(0, "'not equals' operator requires that operands both be same type");
+			}
+//			else
+//			{
+//				$t = Type.boolType();
+//			}
 		}
 	| ^(LE tp1=expression[funcName] tp2=expression[funcName])
 		{
-			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			{
+//				error(0, "'less than or equal to' operation requires int expressions");
+//			}
+			if (!(($tp1.t).equals($tp2.t)))
 			{
-				error(0, "'less than or equal to' operation requires int expressions");
+				error(0, "'less than or equal to' operator requires that operands both be same type");
 			}
 			else
 			{
@@ -411,9 +449,13 @@ expression[String funcName] returns [Type t = null]
 		}
 	| ^(GE tp1=expression[funcName] tp2=expression[funcName])
 		{
-			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			if (!($tp1.t instanceof Int) || !($tp2.t instanceof Int))
+//			{
+//				error(0, "'greater than or equal to' operation requires int expressions");
+//			}
+			if (!(($tp1.t).equals($tp2.t)))
 			{
-				error(0, "'greater than or equal to' operation requires int expressions");
+				error(0, "'greater than or equal to' operator requires that operands both be same type");
 			}
 			else
 			{
@@ -503,7 +545,14 @@ expression[String funcName] returns [Type t = null]
 		}
 	| ^(INVOKE id=ID args=arguments[funcName])
 		{
-			if (args.size() != funcs.get($id.text).getParams().size())
+			if (args == null)
+			{
+				if (funcs.get($id.text).getParams().size() != 0)
+				{
+					error($id.line, "Number of args in call to '" + $id + "' is incorrect");
+				}
+			}
+			else if (args.size() != funcs.get($id.text).getParams().size())
 			{
 				error($id.line, "Number of args in call to '" + $id + "' is incorrect");
 			}

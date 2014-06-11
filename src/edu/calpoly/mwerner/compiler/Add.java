@@ -1,5 +1,8 @@
 package edu.calpoly.mwerner.compiler;
 
+import java.util.HashMap;
+import java.util.Vector;
+
 public class Add extends Instruction
 {
 	private String instrName = "add";
@@ -24,21 +27,49 @@ public class Add extends Instruction
 		return instrName + " " + srcReg1.toString() + ", " + srcReg2.toString() + ", " + targetReg.toString();
 	}
 	
-	public Register getTarget()
+//	public Register getTarget()
+//	{
+//		return targetReg;
+//	}
+//	
+//	public Register getSource(int srcReg)
+//	{
+//		if (srcReg == 1)
+//		{
+//			return srcReg1;
+//		}
+//		else
+//		{
+//			return srcReg2;
+//		}
+//	}
+
+	public Vector<Register> getSrc()
 	{
-		return targetReg;
+		Vector<Register> sources = new Vector<Register>();
+		
+		if (srcReg1 != null)
+		{
+			sources.add(srcReg1);
+		}
+		
+		if (srcReg2 != null)
+		{
+			sources.add(srcReg2);
+		}
+		
+		return sources;
 	}
 	
-	public Register getSource(int srcReg)
+	public Vector<Register> getTarget()
 	{
-		if (srcReg == 1)
+		Vector<Register> targets = new Vector<Register>();
+		
+		if (targetReg != null)
 		{
-			return srcReg1;
+			targets.add(targetReg);
 		}
-		else
-		{
-			return srcReg2;
-		}
+		
+		return targets;
 	}
-
 }

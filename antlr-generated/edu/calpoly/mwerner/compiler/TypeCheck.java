@@ -1,4 +1,4 @@
-// $ANTLR 3.5.2 C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g 2014-05-23 09:05:46
+// $ANTLR 3.5.2 C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g 2014-06-09 12:03:15
 
    package edu.calpoly.mwerner.compiler;
 
@@ -1143,7 +1143,7 @@ public class TypeCheck extends TreeParser {
 						{
 							error(0, "assignment to struct requires another struct or null");
 						}
-						else if (!((tp1).equals(tp2)))
+						else if (!((tp1).equals(tp2)) && (!(tp2 instanceof Struct && tp1 instanceof Null)))
 						{
 							System.out.println(tp1 + " " + tp2);
 							error(0, "assignment types mismatch");
@@ -1562,7 +1562,9 @@ public class TypeCheck extends TreeParser {
 					}
 
 
-							if (!(funcs.get(funcName).getRetType().equals(tp)))
+							Type returnType = funcs.get(funcName).getRetType();
+							
+							if (!((tp instanceof Null) && returnType instanceof Struct) && !(returnType.equals(tp)))
 							{
 								error(0, "incorrect return type from function '" + funcName + "'");
 							}
@@ -1570,7 +1572,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:302:4: RETURN
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:304:4: RETURN
 					{
 					match(input,RETURN,FOLLOW_RETURN_in_ret695); 
 
@@ -1597,7 +1599,7 @@ public class TypeCheck extends TreeParser {
 
 
 	// $ANTLR start "invocation"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:311:1: invocation[String funcName] returns [Type t = null] : ^( INVOKE id= ID args= arguments[funcName] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:313:1: invocation[String funcName] returns [Type t = null] : ^( INVOKE id= ID args= arguments[funcName] ) ;
 	public final Type invocation(String funcName) throws RecognitionException {
 		Type t =  null;
 
@@ -1606,8 +1608,8 @@ public class TypeCheck extends TreeParser {
 		ArrayList<Type> args =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:312:2: ( ^( INVOKE id= ID args= arguments[funcName] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:312:4: ^( INVOKE id= ID args= arguments[funcName] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:314:2: ( ^( INVOKE id= ID args= arguments[funcName] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:314:4: ^( INVOKE id= ID args= arguments[funcName] )
 			{
 			match(input,INVOKE,FOLLOW_INVOKE_in_invocation715); 
 			match(input, Token.DOWN, null); 
@@ -1619,7 +1621,14 @@ public class TypeCheck extends TreeParser {
 			match(input, Token.UP, null); 
 
 			 
-						if (args.size() != funcs.get((id!=null?id.getText():null)).getParams().size())
+						if (args == null)
+						{
+							if (funcs.get((id!=null?id.getText():null)).getParams().size() != 0)
+							{
+								error((id!=null?id.getLine():0), "Number of args in call to '" + id + "' is incorrect");
+							}
+						}
+						else if (args.size() != funcs.get((id!=null?id.getText():null)).getParams().size())
 						{
 							error((id!=null?id.getLine():0), "Number of args in call to '" + id + "' is incorrect");
 						}
@@ -1643,7 +1652,7 @@ public class TypeCheck extends TreeParser {
 
 
 	// $ANTLR start "arguments"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:323:1: arguments[String funcName] returns [ArrayList<Type> argTypes = null] : ( ^( ARGS (tp= expression[funcName] )+ ) | ARGS );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:332:1: arguments[String funcName] returns [ArrayList<Type> argTypes = null] : ( ^( ARGS (tp= expression[funcName] )+ ) | ARGS );
 	public final ArrayList<Type> arguments(String funcName) throws RecognitionException {
 		ArrayList<Type> argTypes =  null;
 
@@ -1651,7 +1660,7 @@ public class TypeCheck extends TreeParser {
 		Type tp =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:324:2: ( ^( ARGS (tp= expression[funcName] )+ ) | ARGS )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:333:2: ( ^( ARGS (tp= expression[funcName] )+ ) | ARGS )
 			int alt18=2;
 			int LA18_0 = input.LA(1);
 			if ( (LA18_0==ARGS) ) {
@@ -1685,14 +1694,14 @@ public class TypeCheck extends TreeParser {
 
 			switch (alt18) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:324:4: ^( ARGS (tp= expression[funcName] )+ )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:333:4: ^( ARGS (tp= expression[funcName] )+ )
 					{
 
 						      argTypes = new ArrayList<Type>();
 						  
 					match(input,ARGS,FOLLOW_ARGS_in_arguments747); 
 					match(input, Token.DOWN, null); 
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:326:13: (tp= expression[funcName] )+
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:335:13: (tp= expression[funcName] )+
 					int cnt17=0;
 					loop17:
 					while (true) {
@@ -1704,7 +1713,7 @@ public class TypeCheck extends TreeParser {
 
 						switch (alt17) {
 						case 1 :
-							// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:326:14: tp= expression[funcName]
+							// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:335:14: tp= expression[funcName]
 							{
 							pushFollow(FOLLOW_expression_in_arguments752);
 							tp=expression(funcName);
@@ -1727,7 +1736,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:327:4: ARGS
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:336:4: ARGS
 					{
 					match(input,ARGS,FOLLOW_ARGS_in_arguments763); 
 					}
@@ -1749,7 +1758,7 @@ public class TypeCheck extends TreeParser {
 
 
 	// $ANTLR start "expression"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:330:1: expression[String funcName] returns [Type t = null] : ( ^( AND tp1= expression[funcName] tp2= expression[funcName] ) | ^( OR tp1= expression[funcName] tp2= expression[funcName] ) | ^( EQ tp1= expression[funcName] tp2= expression[funcName] ) | ^( LT tp1= expression[funcName] tp2= expression[funcName] ) | ^( GT tp1= expression[funcName] tp2= expression[funcName] ) | ^( NE tp1= expression[funcName] tp2= expression[funcName] ) | ^( LE tp1= expression[funcName] tp2= expression[funcName] ) | ^( GE tp1= expression[funcName] tp2= expression[funcName] ) | ^( PLUS tp1= expression[funcName] tp2= expression[funcName] ) | ^( MINUS tp1= expression[funcName] tp2= expression[funcName] ) | ^( TIMES tp1= expression[funcName] tp2= expression[funcName] ) | ^( DIVIDE tp1= expression[funcName] tp2= expression[funcName] ) | ^( NOT tp= expression[funcName] ) | ^( NEG tp= expression[funcName] ) | ^( DOT tp= expression[funcName] id= ID ) | ^( INVOKE id= ID args= arguments[funcName] ) |id= ID | INTEGER | TRUE | FALSE | ^( NEW id= ID ) | VOID | NULL );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:339:1: expression[String funcName] returns [Type t = null] : ( ^( AND tp1= expression[funcName] tp2= expression[funcName] ) | ^( OR tp1= expression[funcName] tp2= expression[funcName] ) | ^( EQ tp1= expression[funcName] tp2= expression[funcName] ) | ^( LT tp1= expression[funcName] tp2= expression[funcName] ) | ^( GT tp1= expression[funcName] tp2= expression[funcName] ) | ^( NE tp1= expression[funcName] tp2= expression[funcName] ) | ^( LE tp1= expression[funcName] tp2= expression[funcName] ) | ^( GE tp1= expression[funcName] tp2= expression[funcName] ) | ^( PLUS tp1= expression[funcName] tp2= expression[funcName] ) | ^( MINUS tp1= expression[funcName] tp2= expression[funcName] ) | ^( TIMES tp1= expression[funcName] tp2= expression[funcName] ) | ^( DIVIDE tp1= expression[funcName] tp2= expression[funcName] ) | ^( NOT tp= expression[funcName] ) | ^( NEG tp= expression[funcName] ) | ^( DOT tp= expression[funcName] id= ID ) | ^( INVOKE id= ID args= arguments[funcName] ) |id= ID | INTEGER | TRUE | FALSE | ^( NEW id= ID ) | VOID | NULL );
 	public final Type expression(String funcName) throws RecognitionException {
 		Type t =  null;
 
@@ -1761,7 +1770,7 @@ public class TypeCheck extends TreeParser {
 		ArrayList<Type> args =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:331:2: ( ^( AND tp1= expression[funcName] tp2= expression[funcName] ) | ^( OR tp1= expression[funcName] tp2= expression[funcName] ) | ^( EQ tp1= expression[funcName] tp2= expression[funcName] ) | ^( LT tp1= expression[funcName] tp2= expression[funcName] ) | ^( GT tp1= expression[funcName] tp2= expression[funcName] ) | ^( NE tp1= expression[funcName] tp2= expression[funcName] ) | ^( LE tp1= expression[funcName] tp2= expression[funcName] ) | ^( GE tp1= expression[funcName] tp2= expression[funcName] ) | ^( PLUS tp1= expression[funcName] tp2= expression[funcName] ) | ^( MINUS tp1= expression[funcName] tp2= expression[funcName] ) | ^( TIMES tp1= expression[funcName] tp2= expression[funcName] ) | ^( DIVIDE tp1= expression[funcName] tp2= expression[funcName] ) | ^( NOT tp= expression[funcName] ) | ^( NEG tp= expression[funcName] ) | ^( DOT tp= expression[funcName] id= ID ) | ^( INVOKE id= ID args= arguments[funcName] ) |id= ID | INTEGER | TRUE | FALSE | ^( NEW id= ID ) | VOID | NULL )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:340:2: ( ^( AND tp1= expression[funcName] tp2= expression[funcName] ) | ^( OR tp1= expression[funcName] tp2= expression[funcName] ) | ^( EQ tp1= expression[funcName] tp2= expression[funcName] ) | ^( LT tp1= expression[funcName] tp2= expression[funcName] ) | ^( GT tp1= expression[funcName] tp2= expression[funcName] ) | ^( NE tp1= expression[funcName] tp2= expression[funcName] ) | ^( LE tp1= expression[funcName] tp2= expression[funcName] ) | ^( GE tp1= expression[funcName] tp2= expression[funcName] ) | ^( PLUS tp1= expression[funcName] tp2= expression[funcName] ) | ^( MINUS tp1= expression[funcName] tp2= expression[funcName] ) | ^( TIMES tp1= expression[funcName] tp2= expression[funcName] ) | ^( DIVIDE tp1= expression[funcName] tp2= expression[funcName] ) | ^( NOT tp= expression[funcName] ) | ^( NEG tp= expression[funcName] ) | ^( DOT tp= expression[funcName] id= ID ) | ^( INVOKE id= ID args= arguments[funcName] ) |id= ID | INTEGER | TRUE | FALSE | ^( NEW id= ID ) | VOID | NULL )
 			int alt19=23;
 			switch ( input.LA(1) ) {
 			case AND:
@@ -1886,7 +1895,7 @@ public class TypeCheck extends TreeParser {
 			}
 			switch (alt19) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:331:4: ^( AND tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:340:4: ^( AND tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,AND,FOLLOW_AND_in_expression779); 
 					match(input, Token.DOWN, null); 
@@ -1913,7 +1922,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:342:4: ^( OR tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:351:4: ^( OR tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,OR,FOLLOW_OR_in_expression800); 
 					match(input, Token.DOWN, null); 
@@ -1940,7 +1949,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 3 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:353:4: ^( EQ tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:362:4: ^( EQ tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,EQ,FOLLOW_EQ_in_expression821); 
 					match(input, Token.DOWN, null); 
@@ -1955,23 +1964,31 @@ public class TypeCheck extends TreeParser {
 					match(input, Token.UP, null); 
 
 
-								if (!((tp1 instanceof Int) && (tp2 instanceof Int)) && !((tp1 instanceof Struct) && (tp2 instanceof Struct)))
+					//			if (!((tp1 instanceof Int) && (tp2 instanceof Int)) && !((tp1 instanceof Struct) && (tp2 instanceof Struct)))
+					//			{
+					//				error(0, "'equals' operator requires int or struct operands");
+					//			}
+					//			else if (!((tp1).equals(tp2)))
+					//			{
+					//				error(0, "'equals' operator requires that operands both be ints or structs");
+					//			}
+					//			else
+					//			{
+					//				t = Type.boolType();
+					//			}
+								if ((tp1).equals(tp2) || (tp1 instanceof Struct && tp2 instanceof Null))
 								{
-									error(0, "'equals' operator requires int or struct operands");
-								}
-								else if (!((tp1).equals(tp2)))
-								{
-									error(0, "'equals' operator requires that operands both be ints or structs");
+									t = Type.boolType();
 								}
 								else
 								{
-									t = Type.boolType();
+									error(0, "'equals' operator requires that operands both be same type");
 								}
 							
 					}
 					break;
 				case 4 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:368:4: ^( LT tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:385:4: ^( LT tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,LT,FOLLOW_LT_in_expression842); 
 					match(input, Token.DOWN, null); 
@@ -1986,9 +2003,13 @@ public class TypeCheck extends TreeParser {
 					match(input, Token.UP, null); 
 
 
-								if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			{
+					//				error(0, "'less than' operation requires int expressions");
+					//			}
+								if (!((tp1).equals(tp2)))
 								{
-									error(0, "'less than' operation requires int expressions");
+									error(0, "'less than' operator requires that operands both be same type");
 								}
 								else
 								{
@@ -1998,7 +2019,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 5 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:379:4: ^( GT tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:400:4: ^( GT tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,GT,FOLLOW_GT_in_expression863); 
 					match(input, Token.DOWN, null); 
@@ -2013,9 +2034,13 @@ public class TypeCheck extends TreeParser {
 					match(input, Token.UP, null); 
 
 
-								if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			{
+					//				error(0, "'greater than' operation requires int expressions");
+					//			}
+								if (!((tp1).equals(tp2)))
 								{
-									error(0, "'greater than' operation requires int expressions");
+									error(0, "'greater than' operator requires that operands both be same type");
 								}
 								else
 								{
@@ -2025,7 +2050,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 6 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:390:4: ^( NE tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:415:4: ^( NE tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,NE,FOLLOW_NE_in_expression884); 
 					match(input, Token.DOWN, null); 
@@ -2040,19 +2065,28 @@ public class TypeCheck extends TreeParser {
 					match(input, Token.UP, null); 
 
 
-								if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
-								{
-									error(0, "'not equals' operation requires int expressions");
-								}
-								else
+					//			if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			{
+					//				error(0, "'not equals' operation requires int expressions");
+					//			}
+								if ((tp1).equals(tp2) || (tp1 instanceof Struct && tp2 instanceof Null))
 								{
 									t = Type.boolType();
 								}
+					//			if (!((tp1).equals(tp2)))
+								else
+								{
+									error(0, "'not equals' operator requires that operands both be same type");
+								}
+					//			else
+					//			{
+					//				t = Type.boolType();
+					//			}
 							
 					}
 					break;
 				case 7 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:401:4: ^( LE tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:435:4: ^( LE tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,LE,FOLLOW_LE_in_expression905); 
 					match(input, Token.DOWN, null); 
@@ -2067,9 +2101,13 @@ public class TypeCheck extends TreeParser {
 					match(input, Token.UP, null); 
 
 
-								if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			{
+					//				error(0, "'less than or equal to' operation requires int expressions");
+					//			}
+								if (!((tp1).equals(tp2)))
 								{
-									error(0, "'less than or equal to' operation requires int expressions");
+									error(0, "'less than or equal to' operator requires that operands both be same type");
 								}
 								else
 								{
@@ -2079,7 +2117,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 8 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:412:4: ^( GE tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:450:4: ^( GE tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,GE,FOLLOW_GE_in_expression926); 
 					match(input, Token.DOWN, null); 
@@ -2094,9 +2132,13 @@ public class TypeCheck extends TreeParser {
 					match(input, Token.UP, null); 
 
 
-								if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			if (!(tp1 instanceof Int) || !(tp2 instanceof Int))
+					//			{
+					//				error(0, "'greater than or equal to' operation requires int expressions");
+					//			}
+								if (!((tp1).equals(tp2)))
 								{
-									error(0, "'greater than or equal to' operation requires int expressions");
+									error(0, "'greater than or equal to' operator requires that operands both be same type");
 								}
 								else
 								{
@@ -2106,7 +2148,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 9 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:423:4: ^( PLUS tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:465:4: ^( PLUS tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,PLUS,FOLLOW_PLUS_in_expression947); 
 					match(input, Token.DOWN, null); 
@@ -2133,7 +2175,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 10 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:434:4: ^( MINUS tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:476:4: ^( MINUS tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,MINUS,FOLLOW_MINUS_in_expression968); 
 					match(input, Token.DOWN, null); 
@@ -2160,7 +2202,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 11 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:445:4: ^( TIMES tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:487:4: ^( TIMES tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,TIMES,FOLLOW_TIMES_in_expression989); 
 					match(input, Token.DOWN, null); 
@@ -2187,7 +2229,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 12 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:456:4: ^( DIVIDE tp1= expression[funcName] tp2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:498:4: ^( DIVIDE tp1= expression[funcName] tp2= expression[funcName] )
 					{
 					match(input,DIVIDE,FOLLOW_DIVIDE_in_expression1010); 
 					match(input, Token.DOWN, null); 
@@ -2214,7 +2256,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 13 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:467:4: ^( NOT tp= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:509:4: ^( NOT tp= expression[funcName] )
 					{
 					match(input,NOT,FOLLOW_NOT_in_expression1031); 
 					match(input, Token.DOWN, null); 
@@ -2237,7 +2279,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 14 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:478:4: ^( NEG tp= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:520:4: ^( NEG tp= expression[funcName] )
 					{
 					match(input,NEG,FOLLOW_NEG_in_expression1047); 
 					match(input, Token.DOWN, null); 
@@ -2260,7 +2302,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 15 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:489:4: ^( DOT tp= expression[funcName] id= ID )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:531:4: ^( DOT tp= expression[funcName] id= ID )
 					{
 					match(input,DOT,FOLLOW_DOT_in_expression1063); 
 					match(input, Token.DOWN, null); 
@@ -2288,7 +2330,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 16 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:504:4: ^( INVOKE id= ID args= arguments[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:546:4: ^( INVOKE id= ID args= arguments[funcName] )
 					{
 					match(input,INVOKE,FOLLOW_INVOKE_in_expression1083); 
 					match(input, Token.DOWN, null); 
@@ -2300,7 +2342,14 @@ public class TypeCheck extends TreeParser {
 					match(input, Token.UP, null); 
 
 
-								if (args.size() != funcs.get((id!=null?id.getText():null)).getParams().size())
+								if (args == null)
+								{
+									if (funcs.get((id!=null?id.getText():null)).getParams().size() != 0)
+									{
+										error((id!=null?id.getLine():0), "Number of args in call to '" + id + "' is incorrect");
+									}
+								}
+								else if (args.size() != funcs.get((id!=null?id.getText():null)).getParams().size())
 								{
 									error((id!=null?id.getLine():0), "Number of args in call to '" + id + "' is incorrect");
 								}
@@ -2310,7 +2359,7 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 17 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:513:4: id= ID
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:562:4: id= ID
 					{
 					id=(CommonTree)match(input,ID,FOLLOW_ID_in_expression1104); 
 
@@ -2334,28 +2383,28 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 18 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:532:4: INTEGER
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:581:4: INTEGER
 					{
 					match(input,INTEGER,FOLLOW_INTEGER_in_expression1114); 
 					 t = Type.intType(); 
 					}
 					break;
 				case 19 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:533:4: TRUE
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:582:4: TRUE
 					{
 					match(input,TRUE,FOLLOW_TRUE_in_expression1121); 
 					 t = Type.boolType(); 
 					}
 					break;
 				case 20 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:534:4: FALSE
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:583:4: FALSE
 					{
 					match(input,FALSE,FOLLOW_FALSE_in_expression1128); 
 					 t = Type.boolType(); 
 					}
 					break;
 				case 21 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:535:4: ^( NEW id= ID )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:584:4: ^( NEW id= ID )
 					{
 					match(input,NEW,FOLLOW_NEW_in_expression1136); 
 					match(input, Token.DOWN, null); 
@@ -2375,14 +2424,14 @@ public class TypeCheck extends TreeParser {
 					}
 					break;
 				case 22 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:546:4: VOID
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:595:4: VOID
 					{
 					match(input,VOID,FOLLOW_VOID_in_expression1151); 
 					 t = Type.voidType(); 
 					}
 					break;
 				case 23 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:547:4: NULL
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\TypeCheck.g:596:4: NULL
 					{
 					match(input,NULL,FOLLOW_NULL_in_expression1158); 
 					 t = Type.nullType(); 

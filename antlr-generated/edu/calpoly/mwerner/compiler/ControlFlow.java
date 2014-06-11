@@ -1,4 +1,4 @@
-// $ANTLR 3.5.2 C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g 2014-05-23 15:59:25
+// $ANTLR 3.5.2 C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g 2014-06-10 15:52:42
 
    package edu.calpoly.mwerner.compiler;
 
@@ -126,6 +126,12 @@ public class ControlFlow extends TreeParser {
 	   //Hashmap mapping params to to registers
 	   HashMap<String, Register> paramRegMap = new HashMap<String, Register>();
 	   
+	   //Hashmap mapping functions to max number of args
+	   HashMap<String, Integer> maxArgsMap = new HashMap<String, Integer>();
+	   
+	   //Hashmap mapping functions to their exit blocks
+	   HashMap<String, BasicBlock> exitBlocks = new HashMap<String, BasicBlock>();
+	   
 	   //Counter for creating block labels
 	   int labelCounter, regCounter, argOffsetCtr;
 	   
@@ -137,6 +143,8 @@ public class ControlFlow extends TreeParser {
 	   
 	   //Boolean flag that determines whether or not to generate assembly instructions
 	   boolean genAssem;
+	   
+	   int maxNumArgs = 0;
 	   
 	   public enum ValCategory
 	   {
@@ -150,6 +158,90 @@ public class ControlFlow extends TreeParser {
 	      System.exit(-1);
 	   }
 	   
+	   // Push callee-saved registers
+	   private void calleeSavePush(BasicBlock currBlock)
+	   {
+	      Pushq pushq = new Pushq(new Register("%rbx"));
+	//      Pushq pushq2 = new Pushq(new Register("%rsp"));
+	//	  Pushq pushq3 = new Pushq(new Register("%rbp"));
+		  Pushq pushq4 = new Pushq(new Register("%r12"));
+		  Pushq pushq5 = new Pushq(new Register("%r13"));
+		  Pushq pushq6 = new Pushq(new Register("%r14"));
+		  Pushq pushq7 = new Pushq(new Register("%r15"));
+		  currBlock.addAssembly(pushq);
+	//	  currBlock.addAssembly(pushq2);
+	//	  currBlock.addAssembly(pushq3);
+		  currBlock.addAssembly(pushq4);
+		  currBlock.addAssembly(pushq5);
+		  currBlock.addAssembly(pushq6);
+		  currBlock.addAssembly(pushq7);
+	   }
+	   
+	   // Pop callee-saved registers
+	   private void calleeSavePop(BasicBlock currBlock)
+	   {
+	      Popq popq = new Popq(new Register("%r15"));
+		  Popq popq2 = new Popq(new Register("%r14"));
+		  Popq popq3 = new Popq(new Register("%r13"));
+		  Popq popq4 = new Popq(new Register("%r12"));
+	//	  Popq popq5 = new Popq(new Register("%rbp"));
+	//	  Popq popq6 = new Popq(new Register("%rsp"));
+		  Popq popq7 = new Popq(new Register("%rbx"));
+		  currBlock.addAssembly(popq);
+		  currBlock.addAssembly(popq2);
+		  currBlock.addAssembly(popq3);
+		  currBlock.addAssembly(popq4);
+	//	  currBlock.addAssembly(popq5);
+	//	  currBlock.addAssembly(popq6);
+		  currBlock.addAssembly(popq7);
+	   }
+	   
+	   // Push caller-saved registers
+	   private void callerSavePush(BasicBlock currBlock)
+	   {
+	      Pushq pushq = new Pushq(new Register("%rax"));
+	      Pushq pushq2 = new Pushq(new Register("%rcx"));
+		  Pushq pushq3 = new Pushq(new Register("%rdx"));
+		  Pushq pushq4 = new Pushq(new Register("%rsi"));
+		  Pushq pushq5 = new Pushq(new Register("%rdi"));
+		  Pushq pushq6 = new Pushq(new Register("%r8"));
+		  Pushq pushq7 = new Pushq(new Register("%r9"));
+		  Pushq pushq8 = new Pushq(new Register("%r10"));
+		  Pushq pushq9 = new Pushq(new Register("%r11"));
+		  currBlock.addAssembly(pushq);
+		  currBlock.addAssembly(pushq2);
+		  currBlock.addAssembly(pushq3);
+		  currBlock.addAssembly(pushq4);
+		  currBlock.addAssembly(pushq5);
+		  currBlock.addAssembly(pushq6);
+		  currBlock.addAssembly(pushq7);
+		  currBlock.addAssembly(pushq8);
+		  currBlock.addAssembly(pushq9);
+	   }
+	   
+	   // Pop caller-saved registers
+	   private void callerSavePop(BasicBlock currBlock)
+	   {
+	      Popq popq = new Popq(new Register("%r11"));
+		  Popq popq2 = new Popq(new Register("%r10"));
+		  Popq popq3 = new Popq(new Register("%r9"));
+		  Popq popq4 = new Popq(new Register("%r8"));
+		  Popq popq5 = new Popq(new Register("%rdi"));
+		  Popq popq6 = new Popq(new Register("%rsi"));
+		  Popq popq7 = new Popq(new Register("%rdx"));
+		  Popq popq8 = new Popq(new Register("%rcx"));
+		  Popq popq9 = new Popq(new Register("%rax"));
+		  currBlock.addAssembly(popq);
+		  currBlock.addAssembly(popq2);
+		  currBlock.addAssembly(popq3);
+		  currBlock.addAssembly(popq4);
+		  currBlock.addAssembly(popq5);
+		  currBlock.addAssembly(popq6);
+		  currBlock.addAssembly(popq7);
+		  currBlock.addAssembly(popq8);
+		  currBlock.addAssembly(popq9);
+	   }
+	   
 	   public void genAssem(boolean flag)
 	   {
 	      genAssem = flag;
@@ -159,18 +251,28 @@ public class ControlFlow extends TreeParser {
 	   {
 	      return sTable.getMapForScope("global");
 	   }
+	   
+	   public int getMaxArgs(String funcName)
+	   {
+	      return maxArgsMap.get(funcName).intValue();
+	   }
+	   
+	   public BasicBlock getExitBlock(String funcName)
+	   {
+	      return exitBlocks.get(funcName);
+	   }
 
 
 
 	// $ANTLR start "program"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:79:1: program returns [HashMap<String, BasicBlock> cfgs = null] : ^( PROGRAM types declarations[\"global\"] functions ) EOF ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:181:1: program returns [HashMap<String, BasicBlock> cfgs = null] : ^( PROGRAM types declarations[\"global\"] functions ) EOF ;
 	public final HashMap<String, BasicBlock> program() throws RecognitionException {
 		HashMap<String, BasicBlock> cfgs =  null;
 
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:80:2: ( ^( PROGRAM types declarations[\"global\"] functions ) EOF )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:80:4: ^( PROGRAM types declarations[\"global\"] functions ) EOF
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:182:2: ( ^( PROGRAM types declarations[\"global\"] functions ) EOF )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:182:4: ^( PROGRAM types declarations[\"global\"] functions ) EOF
 			{
 			match(input,PROGRAM,FOLLOW_PROGRAM_in_program50); 
 			match(input, Token.DOWN, null); 
@@ -207,16 +309,16 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "types"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:83:1: types : ^( TYPES ( struct )* ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:185:1: types : ^( TYPES ( struct )* ) ;
 	public final void types() throws RecognitionException {
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:84:2: ( ^( TYPES ( struct )* ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:84:4: ^( TYPES ( struct )* )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:186:2: ( ^( TYPES ( struct )* ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:186:4: ^( TYPES ( struct )* )
 			{
 			match(input,TYPES,FOLLOW_TYPES_in_types73); 
 			if ( input.LA(1)==Token.DOWN ) {
 				match(input, Token.DOWN, null); 
-				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:84:12: ( struct )*
+				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:186:12: ( struct )*
 				loop1:
 				while (true) {
 					int alt1=2;
@@ -227,7 +329,7 @@ public class ControlFlow extends TreeParser {
 
 					switch (alt1) {
 					case 1 :
-						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:84:12: struct
+						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:186:12: struct
 						{
 						pushFollow(FOLLOW_struct_in_types75);
 						struct();
@@ -260,10 +362,10 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "declarations"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:87:1: declarations[String scopeName] : ( ^( DECLS declaration[scopeName] ) |);
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:189:1: declarations[String scopeName] : ( ^( DECLS declaration[scopeName] ) |);
 	public final void declarations(String scopeName) throws RecognitionException {
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:88:2: ( ^( DECLS declaration[scopeName] ) |)
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:190:2: ( ^( DECLS declaration[scopeName] ) |)
 			int alt2=2;
 			int LA2_0 = input.LA(1);
 			if ( (LA2_0==DECLS) ) {
@@ -281,7 +383,7 @@ public class ControlFlow extends TreeParser {
 
 			switch (alt2) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:88:4: ^( DECLS declaration[scopeName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:190:4: ^( DECLS declaration[scopeName] )
 					{
 					match(input,DECLS,FOLLOW_DECLS_in_declarations89); 
 					if ( input.LA(1)==Token.DOWN ) {
@@ -296,7 +398,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:89:4: 
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:191:4: 
 					{
 					 System.out.println("There are no declarations"); 
 					}
@@ -317,19 +419,19 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "functions"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:92:1: functions : ^( FUNCS ( function )* ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:194:1: functions : ^( FUNCS ( function )* ) ;
 	public final void functions() throws RecognitionException {
 
 				labelCounter = 1;
 			
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:96:3: ( ^( FUNCS ( function )* ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:96:5: ^( FUNCS ( function )* )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:198:3: ( ^( FUNCS ( function )* ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:198:5: ^( FUNCS ( function )* )
 			{
 			match(input,FUNCS,FOLLOW_FUNCS_in_functions114); 
 			if ( input.LA(1)==Token.DOWN ) {
 				match(input, Token.DOWN, null); 
-				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:96:13: ( function )*
+				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:198:13: ( function )*
 				loop3:
 				while (true) {
 					int alt3=2;
@@ -340,7 +442,7 @@ public class ControlFlow extends TreeParser {
 
 					switch (alt3) {
 					case 1 :
-						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:96:13: function
+						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:198:13: function
 						{
 						pushFollow(FOLLOW_function_in_functions116);
 						function();
@@ -373,7 +475,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "struct"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:99:1: struct : ^( STRUCT id= ID ( decs[structVars, varNameList, ValCategory.STRUCT] )+ ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:201:1: struct : ^( STRUCT id= ID ( decs[structVars, varNameList, ValCategory.STRUCT] )+ ) ;
 	public final void struct() throws RecognitionException {
 		CommonTree id=null;
 
@@ -381,8 +483,8 @@ public class ControlFlow extends TreeParser {
 				Vector<String> varNameList = new Vector<String>();
 			
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:103:3: ( ^( STRUCT id= ID ( decs[structVars, varNameList, ValCategory.STRUCT] )+ ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:103:5: ^( STRUCT id= ID ( decs[structVars, varNameList, ValCategory.STRUCT] )+ )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:205:3: ( ^( STRUCT id= ID ( decs[structVars, varNameList, ValCategory.STRUCT] )+ ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:205:5: ^( STRUCT id= ID ( decs[structVars, varNameList, ValCategory.STRUCT] )+ )
 			{
 			match(input,STRUCT,FOLLOW_STRUCT_in_struct134); 
 			match(input, Token.DOWN, null); 
@@ -392,7 +494,7 @@ public class ControlFlow extends TreeParser {
 						sTypes.addStruct((id!=null?id.getText():null), structVars);
 						structs.put((id!=null?id.getText():null), new Struct((id!=null?id.getText():null)));
 					
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:108:5: ( decs[structVars, varNameList, ValCategory.STRUCT] )+
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:210:5: ( decs[structVars, varNameList, ValCategory.STRUCT] )+
 			int cnt4=0;
 			loop4:
 			while (true) {
@@ -404,7 +506,7 @@ public class ControlFlow extends TreeParser {
 
 				switch (alt4) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:108:6: decs[structVars, varNameList, ValCategory.STRUCT]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:210:6: decs[structVars, varNameList, ValCategory.STRUCT]
 					{
 					pushFollow(FOLLOW_decs_in_struct146);
 					decs(structVars, varNameList, ValCategory.STRUCT);
@@ -444,7 +546,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "decs"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:116:1: decs[HashMap<String, Type> vals, Vector<String> varList, ValCategory valCat] : ^( DECL ^( TYPE tp= type ) id= ID ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:218:1: decs[HashMap<String, Type> vals, Vector<String> varList, ValCategory valCat] : ^( DECL ^( TYPE tp= type ) id= ID ) ;
 	public final void decs(HashMap<String, Type> vals, Vector<String> varList, ValCategory valCat) throws RecognitionException {
 		CommonTree id=null;
 		Type tp =null;
@@ -453,8 +555,8 @@ public class ControlFlow extends TreeParser {
 				Movq movq;
 			
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:120:3: ( ^( DECL ^( TYPE tp= type ) id= ID ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:120:5: ^( DECL ^( TYPE tp= type ) id= ID )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:222:3: ( ^( DECL ^( TYPE tp= type ) id= ID ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:222:5: ^( DECL ^( TYPE tp= type ) id= ID )
 			{
 			match(input,DECL,FOLLOW_DECL_in_decs173); 
 			match(input, Token.DOWN, null); 
@@ -520,7 +622,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "type"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:158:1: type returns [Type t = null] : ( INT | BOOL | ^( STRUCT id= ID ) );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:260:1: type returns [Type t = null] : ( INT | BOOL | ^( STRUCT id= ID ) );
 	public final Type type() throws RecognitionException {
 		Type t =  null;
 
@@ -528,7 +630,7 @@ public class ControlFlow extends TreeParser {
 		CommonTree id=null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:159:2: ( INT | BOOL | ^( STRUCT id= ID ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:261:2: ( INT | BOOL | ^( STRUCT id= ID ) )
 			int alt5=3;
 			switch ( input.LA(1) ) {
 			case INT:
@@ -553,21 +655,21 @@ public class ControlFlow extends TreeParser {
 			}
 			switch (alt5) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:159:4: INT
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:261:4: INT
 					{
 					match(input,INT,FOLLOW_INT_in_type205); 
 					 t = Type.intType(); 
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:160:4: BOOL
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:262:4: BOOL
 					{
 					match(input,BOOL,FOLLOW_BOOL_in_type212); 
 					 t = Type.boolType(); 
 					}
 					break;
 				case 3 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:161:4: ^( STRUCT id= ID )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:263:4: ^( STRUCT id= ID )
 					{
 					match(input,STRUCT,FOLLOW_STRUCT_in_type220); 
 					match(input, Token.DOWN, null); 
@@ -596,13 +698,13 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "declaration"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:167:1: declaration[String scopeName] : ( decl_list[scopeName] )* ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:269:1: declaration[String scopeName] : ( decl_list[scopeName] )* ;
 	public final void declaration(String scopeName) throws RecognitionException {
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:168:2: ( ( decl_list[scopeName] )* )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:168:4: ( decl_list[scopeName] )*
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:270:2: ( ( decl_list[scopeName] )* )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:270:4: ( decl_list[scopeName] )*
 			{
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:168:4: ( decl_list[scopeName] )*
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:270:4: ( decl_list[scopeName] )*
 			loop6:
 			while (true) {
 				int alt6=2;
@@ -613,7 +715,7 @@ public class ControlFlow extends TreeParser {
 
 				switch (alt6) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:168:5: decl_list[scopeName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:270:5: decl_list[scopeName]
 					{
 					pushFollow(FOLLOW_decl_list_in_declaration241);
 					decl_list(scopeName);
@@ -643,14 +745,14 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "decl_list"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:171:1: decl_list[String scopeName] : ^( DECLLIST ^( TYPE tp= type ) line= id_list[varNames] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:273:1: decl_list[String scopeName] : ^( DECLLIST ^( TYPE tp= type ) line= id_list[varNames] ) ;
 	public final void decl_list(String scopeName) throws RecognitionException {
 		Type tp =null;
 		int line =0;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:172:2: ( ^( DECLLIST ^( TYPE tp= type ) line= id_list[varNames] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:172:4: ^( DECLLIST ^( TYPE tp= type ) line= id_list[varNames] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:274:2: ( ^( DECLLIST ^( TYPE tp= type ) line= id_list[varNames] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:274:4: ^( DECLLIST ^( TYPE tp= type ) line= id_list[varNames] )
 			{
 			 ArrayList<String> varNames = new ArrayList<String>(); 
 			match(input,DECLLIST,FOLLOW_DECLLIST_in_decl_list258); 
@@ -702,7 +804,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "id_list"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:192:1: id_list[ArrayList<String> varNames] returns [int line = -1] : (id= ID )+ ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:294:1: id_list[ArrayList<String> varNames] returns [int line = -1] : (id= ID )+ ;
 	public final int id_list(ArrayList<String> varNames) throws RecognitionException {
 		int line =  -1;
 
@@ -710,10 +812,10 @@ public class ControlFlow extends TreeParser {
 		CommonTree id=null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:193:2: ( (id= ID )+ )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:193:4: (id= ID )+
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:295:2: ( (id= ID )+ )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:295:4: (id= ID )+
 			{
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:193:4: (id= ID )+
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:295:4: (id= ID )+
 			int cnt7=0;
 			loop7:
 			while (true) {
@@ -725,7 +827,7 @@ public class ControlFlow extends TreeParser {
 
 				switch (alt7) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:193:5: id= ID
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:295:5: id= ID
 					{
 					id=(CommonTree)match(input,ID,FOLLOW_ID_in_id_list295); 
 					 varNames.add((id!=null?id.getText():null)); 
@@ -758,14 +860,14 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "function"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:196:1: function : ^( FUN id= ID parameters[params] ^( RETTYPE tp= return_type ) declarations[$id.text] statement_list[$id.text] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:298:1: function : ^( FUN id= ID parameters[params] ^( RETTYPE tp= return_type ) declarations[$id.text] statement_list[$id.text] ) ;
 	public final void function() throws RecognitionException {
 		CommonTree id=null;
 		Type tp =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:197:2: ( ^( FUN id= ID parameters[params] ^( RETTYPE tp= return_type ) declarations[$id.text] statement_list[$id.text] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:197:4: ^( FUN id= ID parameters[params] ^( RETTYPE tp= return_type ) declarations[$id.text] statement_list[$id.text] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:299:2: ( ^( FUN id= ID parameters[params] ^( RETTYPE tp= return_type ) declarations[$id.text] statement_list[$id.text] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:299:4: ^( FUN id= ID parameters[params] ^( RETTYPE tp= return_type ) declarations[$id.text] statement_list[$id.text] )
 			{
 			match(input,FUN,FOLLOW_FUN_in_function312); 
 			match(input, Token.DOWN, null); 
@@ -786,8 +888,14 @@ public class ControlFlow extends TreeParser {
 						currBlock.addAssembly(pushq);
 						currBlock.addAssembly(movq);
 						
+						calleeSavePush(currBlock);
+						
 						exitBlock = new BasicBlock("L" + labelCounter++);
 						exitBlock.addInstr(new Ret());
+						
+						exitBlocks.put((id!=null?id.getText():null), exitBlock);
+						
+						calleeSavePop(exitBlock);
 						
 						Movq endMovq = new Movq(rbp, rsp);
 						Popq popq = new Popq(rbp);
@@ -829,7 +937,30 @@ public class ControlFlow extends TreeParser {
 					 			currBlock.addSuccessor(exitBlock);
 					 			exitBlock.addPredecessor(currBlock);
 					 			
+					 			Jumpi jumpi = new Jumpi(new Label(exitBlock.getLabel()));
+					 			currBlock.addInstr(jumpi);
+					 			
+					 			Jmp jmp = new Jmp(new Label(exitBlock.getLabel()));
+					 			currBlock.addAssembly(jmp);
+					 			
 					 			currBlock = exitBlock;
+					 			
+					 			maxArgsMap.put((id!=null?id.getText():null), new Integer(maxNumArgs));
+					 			
+			//		 			BasicBlock funcBlk = cfgMap.get((id!=null?id.getText():null));
+			//		 			Subq subq = new Subq(new Immediate(8*maxNumArgs), new Register("%rsp"));
+			//		 			funcBlk.addAssembly(subq, 9);
+			//		 			
+			//		 			Addq addq = new Addq(new Immediate(8*maxNumArgs), new Register("%rsp"));
+			//		 			
+			//		 			if (exitBlock.numAssemInstr() > 10)
+			//		 			{
+			//		 				exitBlock.addAssembly(addq, exitBlock.numAssemInstr()-11);
+			//		 			}
+			//		 			else
+			//		 			{
+			//		 				exitBlock.addAssembly(addq, 0);
+			//		 			}
 					 		
 			match(input, Token.UP, null); 
 
@@ -849,7 +980,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "parameters"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:241:1: parameters[HashMap<String, Type> params] : ^( PARAMS ( decs[params, paramList, ValCategory.PARAMS] )* ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:372:1: parameters[HashMap<String, Type> params] : ^( PARAMS ( decs[params, paramList, ValCategory.PARAMS] )* ) ;
 	public final void parameters(HashMap<String, Type> params) throws RecognitionException {
 
 				Vector<String> paramList = new Vector<String>();
@@ -857,13 +988,13 @@ public class ControlFlow extends TreeParser {
 				paramRegMap.clear();
 			
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:247:3: ( ^( PARAMS ( decs[params, paramList, ValCategory.PARAMS] )* ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:247:5: ^( PARAMS ( decs[params, paramList, ValCategory.PARAMS] )* )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:378:3: ( ^( PARAMS ( decs[params, paramList, ValCategory.PARAMS] )* ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:378:5: ^( PARAMS ( decs[params, paramList, ValCategory.PARAMS] )* )
 			{
 			match(input,PARAMS,FOLLOW_PARAMS_in_parameters369); 
 			if ( input.LA(1)==Token.DOWN ) {
 				match(input, Token.DOWN, null); 
-				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:247:14: ( decs[params, paramList, ValCategory.PARAMS] )*
+				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:378:14: ( decs[params, paramList, ValCategory.PARAMS] )*
 				loop8:
 				while (true) {
 					int alt8=2;
@@ -874,7 +1005,7 @@ public class ControlFlow extends TreeParser {
 
 					switch (alt8) {
 					case 1 :
-						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:247:15: decs[params, paramList, ValCategory.PARAMS]
+						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:378:15: decs[params, paramList, ValCategory.PARAMS]
 						{
 						pushFollow(FOLLOW_decs_in_parameters372);
 						decs(params, paramList, ValCategory.PARAMS);
@@ -907,7 +1038,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "return_type"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:250:1: return_type returns [Type t = null] : (tp= type | VOID );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:381:1: return_type returns [Type t = null] : (tp= type | VOID );
 	public final Type return_type() throws RecognitionException {
 		Type t =  null;
 
@@ -915,7 +1046,7 @@ public class ControlFlow extends TreeParser {
 		Type tp =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:251:2: (tp= type | VOID )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:382:2: (tp= type | VOID )
 			int alt9=2;
 			int LA9_0 = input.LA(1);
 			if ( (LA9_0==BOOL||LA9_0==INT||LA9_0==STRUCT) ) {
@@ -933,7 +1064,7 @@ public class ControlFlow extends TreeParser {
 
 			switch (alt9) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:251:4: tp= type
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:382:4: tp= type
 					{
 					pushFollow(FOLLOW_type_in_return_type393);
 					tp=type();
@@ -943,7 +1074,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:252:4: VOID
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:383:4: VOID
 					{
 					match(input,VOID,FOLLOW_VOID_in_return_type400); 
 					 t = Type.voidType(); 
@@ -966,16 +1097,16 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "statement_list"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:255:1: statement_list[String funcName] : ^( STMTS ( statement[funcName] )* ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:386:1: statement_list[String funcName] : ^( STMTS ( statement[funcName] )* ) ;
 	public final void statement_list(String funcName) throws RecognitionException {
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:256:2: ( ^( STMTS ( statement[funcName] )* ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:256:4: ^( STMTS ( statement[funcName] )* )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:387:2: ( ^( STMTS ( statement[funcName] )* ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:387:4: ^( STMTS ( statement[funcName] )* )
 			{
 			match(input,STMTS,FOLLOW_STMTS_in_statement_list414); 
 			if ( input.LA(1)==Token.DOWN ) {
 				match(input, Token.DOWN, null); 
-				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:256:12: ( statement[funcName] )*
+				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:387:12: ( statement[funcName] )*
 				loop10:
 				while (true) {
 					int alt10=2;
@@ -986,7 +1117,7 @@ public class ControlFlow extends TreeParser {
 
 					switch (alt10) {
 					case 1 :
-						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:256:13: statement[funcName]
+						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:387:13: statement[funcName]
 						{
 						pushFollow(FOLLOW_statement_in_statement_list417);
 						statement(funcName);
@@ -1019,10 +1150,10 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "statement"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:259:1: statement[String funcName] : ( block[funcName] | assignment[funcName] | print[funcName] | read[funcName] | conditional[funcName] | loop[funcName] | delete[funcName] | ret[funcName] | invocation[funcName] );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:390:1: statement[String funcName] : ( block[funcName] | assignment[funcName] | print[funcName] | read[funcName] | conditional[funcName] | loop[funcName] | delete[funcName] | ret[funcName] | invocation[funcName] );
 	public final void statement(String funcName) throws RecognitionException {
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:260:2: ( block[funcName] | assignment[funcName] | print[funcName] | read[funcName] | conditional[funcName] | loop[funcName] | delete[funcName] | ret[funcName] | invocation[funcName] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:391:2: ( block[funcName] | assignment[funcName] | print[funcName] | read[funcName] | conditional[funcName] | loop[funcName] | delete[funcName] | ret[funcName] | invocation[funcName] )
 			int alt11=9;
 			switch ( input.LA(1) ) {
 			case BLOCK:
@@ -1077,7 +1208,7 @@ public class ControlFlow extends TreeParser {
 			}
 			switch (alt11) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:260:4: block[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:391:4: block[funcName]
 					{
 					pushFollow(FOLLOW_block_in_statement432);
 					block(funcName);
@@ -1086,7 +1217,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:261:4: assignment[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:392:4: assignment[funcName]
 					{
 					pushFollow(FOLLOW_assignment_in_statement438);
 					assignment(funcName);
@@ -1095,7 +1226,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 3 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:262:4: print[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:393:4: print[funcName]
 					{
 					pushFollow(FOLLOW_print_in_statement444);
 					print(funcName);
@@ -1104,7 +1235,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 4 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:263:4: read[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:394:4: read[funcName]
 					{
 					pushFollow(FOLLOW_read_in_statement450);
 					read(funcName);
@@ -1113,7 +1244,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 5 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:264:4: conditional[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:395:4: conditional[funcName]
 					{
 					pushFollow(FOLLOW_conditional_in_statement456);
 					conditional(funcName);
@@ -1122,7 +1253,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 6 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:265:4: loop[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:396:4: loop[funcName]
 					{
 					pushFollow(FOLLOW_loop_in_statement462);
 					loop(funcName);
@@ -1131,7 +1262,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 7 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:266:4: delete[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:397:4: delete[funcName]
 					{
 					pushFollow(FOLLOW_delete_in_statement468);
 					delete(funcName);
@@ -1140,7 +1271,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 8 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:267:4: ret[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:398:4: ret[funcName]
 					{
 					pushFollow(FOLLOW_ret_in_statement474);
 					ret(funcName);
@@ -1149,7 +1280,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 9 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:268:4: invocation[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:399:4: invocation[funcName]
 					{
 					pushFollow(FOLLOW_invocation_in_statement480);
 					invocation(funcName);
@@ -1173,11 +1304,11 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "block"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:271:1: block[String funcName] : ^( BLOCK statement_list[funcName] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:402:1: block[String funcName] : ^( BLOCK statement_list[funcName] ) ;
 	public final void block(String funcName) throws RecognitionException {
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:272:2: ( ^( BLOCK statement_list[funcName] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:272:4: ^( BLOCK statement_list[funcName] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:403:2: ( ^( BLOCK statement_list[funcName] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:403:4: ^( BLOCK statement_list[funcName] )
 			{
 			match(input,BLOCK,FOLLOW_BLOCK_in_block493); 
 			match(input, Token.DOWN, null); 
@@ -1203,14 +1334,14 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "assignment"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:275:1: assignment[String funcName] : ^( ASSIGN r1= expression[funcName] x= lvalue[funcName] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:406:1: assignment[String funcName] : ^( ASSIGN r1= expression[funcName] x= lvalue[funcName] ) ;
 	public final void assignment(String funcName) throws RecognitionException {
 		TreeRuleReturnScope r1 =null;
 		TreeRuleReturnScope x =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:276:2: ( ^( ASSIGN r1= expression[funcName] x= lvalue[funcName] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:276:4: ^( ASSIGN r1= expression[funcName] x= lvalue[funcName] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:407:2: ( ^( ASSIGN r1= expression[funcName] x= lvalue[funcName] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:407:4: ^( ASSIGN r1= expression[funcName] x= lvalue[funcName] )
 			{
 			match(input,ASSIGN,FOLLOW_ASSIGN_in_assignment509); 
 			match(input, Token.DOWN, null); 
@@ -1243,13 +1374,25 @@ public class ControlFlow extends TreeParser {
 						{
 							if (sTable.varPrevDefined(funcName, (x!=null?((ControlFlow.lvalue_return)x).var:null)))
 							{
-								Mov mov = new Mov(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), localRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null)));
+								Register srcReg = new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0));
+								Register targetReg = localRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null));
+								
+								Movq movq = new Movq(srcReg, targetReg);
+								currBlock.addAssembly(movq);
+								
+								Mov mov = new Mov(srcReg, targetReg);
 								currBlock.addInstr(mov);
 							}
 							//Check params
 							else if (paramRegMap.containsKey((x!=null?((ControlFlow.lvalue_return)x).var:null)))
 							{
-								Mov mov = new Mov(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), paramRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null)));
+								Register srcReg = new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0));
+								Register targetReg = paramRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null));
+								
+								Movq movq = new Movq(srcReg, targetReg);
+								currBlock.addAssembly(movq);
+								
+								Mov mov = new Mov(srcReg, targetReg);
 								currBlock.addInstr(mov);
 							}
 							//Must be global
@@ -1287,7 +1430,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "lvalue"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:320:1: lvalue[String funcName] returns [String var = null, int reg = -1, Type tp = null] : ( ^( DOT r1= ldot[funcName] id= ID ) |id= ID );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:463:1: lvalue[String funcName] returns [String var = null, int reg = -1, Type tp = null] : ( ^( DOT r1= ldot[funcName] id= ID ) |id= ID );
 	public final ControlFlow.lvalue_return lvalue(String funcName) throws RecognitionException {
 		ControlFlow.lvalue_return retval = new ControlFlow.lvalue_return();
 		retval.start = input.LT(1);
@@ -1296,7 +1439,7 @@ public class ControlFlow extends TreeParser {
 		TreeRuleReturnScope r1 =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:321:2: ( ^( DOT r1= ldot[funcName] id= ID ) |id= ID )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:464:2: ( ^( DOT r1= ldot[funcName] id= ID ) |id= ID )
 			int alt12=2;
 			int LA12_0 = input.LA(1);
 			if ( (LA12_0==DOT) ) {
@@ -1314,7 +1457,7 @@ public class ControlFlow extends TreeParser {
 
 			switch (alt12) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:321:4: ^( DOT r1= ldot[funcName] id= ID )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:464:4: ^( DOT r1= ldot[funcName] id= ID )
 					{
 					match(input,DOT,FOLLOW_DOT_in_lvalue540); 
 					match(input, Token.DOWN, null); 
@@ -1333,7 +1476,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:327:4: id= ID
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:470:4: id= ID
 					{
 					id=(CommonTree)match(input,ID,FOLLOW_ID_in_lvalue561); 
 
@@ -1363,7 +1506,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "ldot"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:333:1: ldot[String funcName] returns [int reg = -1, Type tp = null] : ( ^( DOT r1= ldot[funcName] id= ID ) |id= ID );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:476:1: ldot[String funcName] returns [int reg = -1, Type tp = null] : ( ^( DOT r1= ldot[funcName] id= ID ) |id= ID );
 	public final ControlFlow.ldot_return ldot(String funcName) throws RecognitionException {
 		ControlFlow.ldot_return retval = new ControlFlow.ldot_return();
 		retval.start = input.LT(1);
@@ -1372,7 +1515,7 @@ public class ControlFlow extends TreeParser {
 		TreeRuleReturnScope r1 =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:334:2: ( ^( DOT r1= ldot[funcName] id= ID ) |id= ID )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:477:2: ( ^( DOT r1= ldot[funcName] id= ID ) |id= ID )
 			int alt13=2;
 			int LA13_0 = input.LA(1);
 			if ( (LA13_0==DOT) ) {
@@ -1390,7 +1533,7 @@ public class ControlFlow extends TreeParser {
 
 			switch (alt13) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:334:4: ^( DOT r1= ldot[funcName] id= ID )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:477:4: ^( DOT r1= ldot[funcName] id= ID )
 					{
 					match(input,DOT,FOLLOW_DOT_in_ldot581); 
 					match(input, Token.DOWN, null); 
@@ -1420,7 +1563,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:351:4: id= ID
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:494:4: id= ID
 					{
 					id=(CommonTree)match(input,ID,FOLLOW_ID_in_ldot602); 
 
@@ -1470,7 +1613,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "print"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:382:1: print[String funcName] : ^( PRINT r1= expression[funcName] ( ENDL )? ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:525:1: print[String funcName] : ^( PRINT r1= expression[funcName] ( ENDL )? ) ;
 	public final void print(String funcName) throws RecognitionException {
 		TreeRuleReturnScope r1 =null;
 
@@ -1478,8 +1621,8 @@ public class ControlFlow extends TreeParser {
 				int flag = 0;
 			
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:386:3: ( ^( PRINT r1= expression[funcName] ( ENDL )? ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:386:5: ^( PRINT r1= expression[funcName] ( ENDL )? )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:529:3: ( ^( PRINT r1= expression[funcName] ( ENDL )? ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:529:5: ^( PRINT r1= expression[funcName] ( ENDL )? )
 			{
 			match(input,PRINT,FOLLOW_PRINT_in_print623); 
 			match(input, Token.DOWN, null); 
@@ -1487,7 +1630,7 @@ public class ControlFlow extends TreeParser {
 			r1=expression(funcName);
 			state._fsp--;
 
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:386:37: ( ENDL )?
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:529:37: ( ENDL )?
 			int alt14=2;
 			int LA14_0 = input.LA(1);
 			if ( (LA14_0==ENDL) ) {
@@ -1495,12 +1638,28 @@ public class ControlFlow extends TreeParser {
 			}
 			switch (alt14) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:386:38: ENDL
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:529:38: ENDL
 					{
 					match(input,ENDL,FOLLOW_ENDL_in_print631); 
 
-								currBlock.addInstr(new Println(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0))));
-								currBlock.addAssembly(new Println(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)))); 
+								Register reg = new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0));
+								Register targetReg = new Register(regCounter++);
+								
+								currBlock.addInstr(new Println(reg));
+								
+								Movq movq = new Movq(".LLC0", new Register("%rdi"));
+								Movq movq2 = new Movq(reg, new Register("%rsi"));
+								Movq movq3 = new Movq(new Immediate(0), new Register("%rax"));
+								
+								Call call = new Call("printf");
+								
+								currBlock.addAssembly(movq);
+								currBlock.addAssembly(movq2);
+								currBlock.addAssembly(movq3);
+								callerSavePush(currBlock);
+								currBlock.addAssembly(call);
+								callerSavePop(currBlock);
+								
 								flag=1;
 							
 					}
@@ -1511,8 +1670,21 @@ public class ControlFlow extends TreeParser {
 
 						if (flag==0) 
 						{
-							currBlock.addInstr(new Print(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0))));
-							currBlock.addAssembly(new Print(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0))));
+							Register reg = new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0));
+							
+							currBlock.addInstr(new Print(reg));
+							
+							Movq movq = new Movq(".LLC1", new Register("%rdi"));
+							Movq movq2 = new Movq(reg, new Register("%rsi"));
+							Movq movq3 = new Movq(new Immediate(0), new Register("%rax"));
+							Call call = new Call("printf");
+							
+							currBlock.addAssembly(movq);
+							currBlock.addAssembly(movq2);
+							currBlock.addAssembly(movq3);
+							callerSavePush(currBlock);
+							currBlock.addAssembly(call);
+							callerSavePop(currBlock);
 						}
 					
 			match(input, Token.UP, null); 
@@ -1533,13 +1705,13 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "read"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:401:1: read[String funcName] : ^( READ x= lvalue[funcName] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:573:1: read[String funcName] : ^( READ x= lvalue[funcName] ) ;
 	public final void read(String funcName) throws RecognitionException {
 		TreeRuleReturnScope x =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:402:2: ( ^( READ x= lvalue[funcName] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:402:4: ^( READ x= lvalue[funcName] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:574:2: ( ^( READ x= lvalue[funcName] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:574:4: ^( READ x= lvalue[funcName] )
 			{
 			match(input,READ,FOLLOW_READ_in_read656); 
 			match(input, Token.DOWN, null); 
@@ -1549,43 +1721,74 @@ public class ControlFlow extends TreeParser {
 
 			match(input, Token.UP, null); 
 
-
-						Addi addi = new Addi(new Register("rarp"), (x!=null?((ControlFlow.lvalue_return)x).var:null), new Register(regCounter));
-						currBlock.addInstr(addi);
+				
+						Register rsi = new Register("%rsi");
+						Register readReg = new Register(regCounter++);
 						
-						Read read = new Read(new Register(regCounter++));
-						currBlock.addInstr(read);
+						Movq movq = new Movq(".LLC2", new Register("%rdi"));
+						Movq movq2 = new Movq("glob_rd", new Register("%rsi"));
+						Movq movq3 = new Movq(new Immediate(0), new Register("%rax"));
+						Call call = new Call("scanf");
 						
-						Loadai loadai;
+						currBlock.addAssembly(movq);
+						currBlock.addAssembly(movq2);
+						currBlock.addAssembly(movq3);
+						callerSavePush(currBlock);
+						currBlock.addAssembly(call);
+						callerSavePop(currBlock);
+									
+						Read read = new Read(readReg);
+						currBlock.addInstr(read);	
 						
-						//Check local vars
-						if (sTable.varPrevDefined(funcName, (x!=null?((ControlFlow.lvalue_return)x).var:null)))
-						{
+						if ((x!=null?((ControlFlow.lvalue_return)x).reg:0) != -1)
+						{	
+							Register targetReg = new Register((x!=null?((ControlFlow.lvalue_return)x).reg:0));
 							
-							loadai = new Loadai(new Register("rarp"), (x!=null?((ControlFlow.lvalue_return)x).var:null), localRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null)));
+							Vector<String> valList = structVarNames.get(((Struct)(x!=null?((ControlFlow.lvalue_return)x).tp:null)).structName());
+						
+							int offset = valList.indexOf((x!=null?((ControlFlow.lvalue_return)x).var:null)) * 8;
+									
+							Movq movq4 = new Movq("glob_rd", new Register("%rip"), readReg);
+							Movq movq5 = new Movq(readReg, new Immediate(offset), targetReg);
+							currBlock.addAssembly(movq4);
+							currBlock.addAssembly(movq5);
+							
+							Storeai storeai = new Storeai(readReg, targetReg, (x!=null?((ControlFlow.lvalue_return)x).var:null));
+							currBlock.addInstr(storeai);
 						}
-						//Check params
-						else if (paramRegMap.containsKey((x!=null?((ControlFlow.lvalue_return)x).var:null)))
-						{
-							loadai = new Loadai(new Register("rarp"), (x!=null?((ControlFlow.lvalue_return)x).var:null), paramRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null)));
-						}
-						//Must be global
 						else
 						{
-							int reg = regCounter;
-							
-							Register targetReg = new Register(regCounter++);
-							
-							Movq movq = new Movq(("glob_" + (x!=null?((ControlFlow.lvalue_return)x).var:null)), new Register("%rip"), targetReg);
-							currBlock.addAssembly(movq);
-							
-							Loadglobal loadglobal = new Loadglobal(new Id((x!=null?((ControlFlow.lvalue_return)x).var:null)), targetReg);
-							currBlock.addInstr(loadglobal);
-							
-							loadai = new Loadai(new Register("rarp"), (x!=null?((ControlFlow.lvalue_return)x).var:null), new Register(reg));
+							//Check local vars
+							if (sTable.varPrevDefined(funcName, (x!=null?((ControlFlow.lvalue_return)x).var:null)))
+							{
+								Mov mov = new Mov(readReg, localRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null)));
+								currBlock.addInstr(mov);
+								
+								Movq movq6 = new Movq("glob_rd", new Register("%rip"), localRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null)));
+								currBlock.addAssembly(movq6);
+							}
+							//Check params
+							else if (paramRegMap.containsKey((x!=null?((ControlFlow.lvalue_return)x).var:null)))
+							{
+								Mov mov = new Mov(readReg, paramRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null)));
+								currBlock.addInstr(mov);
+								
+								Movq movq6 = new Movq("glob_rd", new Register("%rip"), paramRegMap.get((x!=null?((ControlFlow.lvalue_return)x).var:null)));
+								currBlock.addAssembly(movq6);
+							}
+							//Must be global
+							else
+							{
+								Movq movq6 = new Movq("glob_rd", new Register("%rip"), readReg);
+								Movq movq7 = new Movq(readReg, ("glob_" + (x!=null?((ControlFlow.lvalue_return)x).var:null)), new Register("%rip"));
+								currBlock.addAssembly(movq6);
+								currBlock.addAssembly(movq7);
+				
+								Storeglobal storeglobal = new Storeglobal(readReg, new Id((x!=null?((ControlFlow.lvalue_return)x).var:null)));
+								currBlock.addInstr(storeglobal);
+								
+							}
 						}
-						
-						currBlock.addInstr(loadai);
 					
 			}
 
@@ -1603,7 +1806,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "conditional"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:443:1: conditional[String funcName] : ^( IF r1= expression[funcName] block[funcName] ( block[funcName] )? ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:646:1: conditional[String funcName] : ^( IF r1= expression[funcName] block[funcName] ( block[funcName] )? ) ;
 	public final void conditional(String funcName) throws RecognitionException {
 		TreeRuleReturnScope r1 =null;
 
@@ -1613,8 +1816,8 @@ public class ControlFlow extends TreeParser {
 		            Jmp jmp; 
 				  
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:448:6: ( ^( IF r1= expression[funcName] block[funcName] ( block[funcName] )? ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:448:8: ^( IF r1= expression[funcName] block[funcName] ( block[funcName] )? )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:651:6: ( ^( IF r1= expression[funcName] block[funcName] ( block[funcName] )? ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:651:8: ^( IF r1= expression[funcName] block[funcName] ( block[funcName] )? )
 			{
 			match(input,IF,FOLLOW_IF_in_conditional682); 
 			match(input, Token.DOWN, null); 
@@ -1657,7 +1860,7 @@ public class ControlFlow extends TreeParser {
 						topBlock.addAssembly(jmp);
 						
 					
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:479:5: ( block[funcName] )?
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:682:5: ( block[funcName] )?
 			int alt15=2;
 			int LA15_0 = input.LA(1);
 			if ( (LA15_0==BLOCK) ) {
@@ -1665,7 +1868,7 @@ public class ControlFlow extends TreeParser {
 			}
 			switch (alt15) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:479:6: block[funcName]
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:682:6: block[funcName]
 					{
 					pushFollow(FOLLOW_block_in_conditional702);
 					block(funcName);
@@ -1708,7 +1911,7 @@ public class ControlFlow extends TreeParser {
 							currBlock.addInstr(jumpimm);
 							
 							jmp = new Jmp(new Label(afterBlock.getLabel()));
-							endThen.addAssembly(jmp);
+							currBlock.addAssembly(jmp);
 						}
 						else if (!(currBlock.getInstr(currBlock.numInstructions()-1) instanceof Ret))
 						{
@@ -1716,7 +1919,7 @@ public class ControlFlow extends TreeParser {
 							currBlock.addInstr(jumpimm);
 							
 							jmp = new Jmp(new Label(afterBlock.getLabel()));
-							endThen.addAssembly(jmp);
+							currBlock.addAssembly(jmp);
 						}
 						
 						afterBlock.addPredecessor(endThen);
@@ -1740,7 +1943,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "loop"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:528:1: loop[String funcName] : ^( WHILE r1= expression[funcName] block[funcName] r2= expression[funcName] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:731:1: loop[String funcName] : ^( WHILE r1= expression[funcName] block[funcName] r2= expression[funcName] ) ;
 	public final void loop(String funcName) throws RecognitionException {
 		TreeRuleReturnScope r1 =null;
 		TreeRuleReturnScope r2 =null;
@@ -1752,8 +1955,8 @@ public class ControlFlow extends TreeParser {
 					Je je;
 				  
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:534:6: ( ^( WHILE r1= expression[funcName] block[funcName] r2= expression[funcName] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:534:8: ^( WHILE r1= expression[funcName] block[funcName] r2= expression[funcName] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:737:6: ( ^( WHILE r1= expression[funcName] block[funcName] r2= expression[funcName] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:737:8: ^( WHILE r1= expression[funcName] block[funcName] r2= expression[funcName] )
 			{
 			match(input,WHILE,FOLLOW_WHILE_in_loop726); 
 			match(input, Token.DOWN, null); 
@@ -1839,13 +2042,13 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "delete"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:589:1: delete[String funcName] : ^( DELETE r1= expression[funcName] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:792:1: delete[String funcName] : ^( DELETE r1= expression[funcName] ) ;
 	public final void delete(String funcName) throws RecognitionException {
 		TreeRuleReturnScope r1 =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:590:2: ( ^( DELETE r1= expression[funcName] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:590:4: ^( DELETE r1= expression[funcName] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:793:2: ( ^( DELETE r1= expression[funcName] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:793:4: ^( DELETE r1= expression[funcName] )
 			{
 			match(input,DELETE,FOLLOW_DELETE_in_delete765); 
 			match(input, Token.DOWN, null); 
@@ -1858,6 +2061,13 @@ public class ControlFlow extends TreeParser {
 
 						Del del = new Del(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)));
 						currBlock.addInstr(del);
+						
+						Movq movq = new Movq(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register("%rdi"));
+						Call call = new Call("free");
+						currBlock.addAssembly(movq);
+						callerSavePush(currBlock);
+						currBlock.addAssembly(call);
+						callerSavePop(currBlock);
 					
 			}
 
@@ -1875,18 +2085,18 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "ret"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:597:1: ret[String funcName] : ^( RETURN (r1= expression[funcName] )? ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:807:1: ret[String funcName] : ^( RETURN (r1= expression[funcName] )? ) ;
 	public final void ret(String funcName) throws RecognitionException {
 		TreeRuleReturnScope r1 =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:598:2: ( ^( RETURN (r1= expression[funcName] )? ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:598:4: ^( RETURN (r1= expression[funcName] )? )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:808:2: ( ^( RETURN (r1= expression[funcName] )? ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:808:4: ^( RETURN (r1= expression[funcName] )? )
 			{
 			match(input,RETURN,FOLLOW_RETURN_in_ret787); 
 			if ( input.LA(1)==Token.DOWN ) {
 				match(input, Token.DOWN, null); 
-				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:598:13: (r1= expression[funcName] )?
+				// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:808:13: (r1= expression[funcName] )?
 				int alt16=2;
 				int LA16_0 = input.LA(1);
 				if ( (LA16_0==AND||(LA16_0 >= DIVIDE && LA16_0 <= DOT)||(LA16_0 >= EQ && LA16_0 <= FALSE)||(LA16_0 >= GE && LA16_0 <= ID)||(LA16_0 >= INTEGER && LA16_0 <= INVOKE)||LA16_0==LE||(LA16_0 >= LT && LA16_0 <= OR)||LA16_0==PLUS||(LA16_0 >= TIMES && LA16_0 <= TRUE)) ) {
@@ -1894,7 +2104,7 @@ public class ControlFlow extends TreeParser {
 				}
 				switch (alt16) {
 					case 1 :
-						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:598:14: r1= expression[funcName]
+						// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:808:14: r1= expression[funcName]
 						{
 						pushFollow(FOLLOW_expression_in_ret792);
 						r1=expression(funcName);
@@ -1923,11 +2133,12 @@ public class ControlFlow extends TreeParser {
 						
 						Jumpi jumpi = new Jumpi(new Label(exitBlock.getLabel()));
 						currBlock.addInstr(jumpi);
-						
+			//			
 						Jmp jmp = new Jmp(new Label(exitBlock.getLabel()));
 						currBlock.addAssembly(jmp);
 						
-						currBlock = new BasicBlock("L" + labelCounter++);
+						//currBlock = new BasicBlock("L" + labelCounter++);
+						//System.out.println("Curr Block: " + currBlock.getLabel());
 
 					
 			}
@@ -1946,14 +2157,14 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "invocation"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:623:1: invocation[String funcName] : ^( INVOKE id= ID argRegs= arguments[funcName] ) ;
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:834:1: invocation[String funcName] : ^( INVOKE id= ID argRegs= arguments[funcName] ) ;
 	public final void invocation(String funcName) throws RecognitionException {
 		CommonTree id=null;
 		ArrayList<Register> argRegs =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:624:2: ( ^( INVOKE id= ID argRegs= arguments[funcName] ) )
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:624:4: ^( INVOKE id= ID argRegs= arguments[funcName] )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:835:2: ( ^( INVOKE id= ID argRegs= arguments[funcName] ) )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:835:4: ^( INVOKE id= ID argRegs= arguments[funcName] )
 			{
 			match(input,INVOKE,FOLLOW_INVOKE_in_invocation812); 
 			match(input, Token.DOWN, null); 
@@ -1967,21 +2178,69 @@ public class ControlFlow extends TreeParser {
 				
 						if (argRegs != null)
 						{
+							Movq movq;
+							
+							int spillArgs = 0;
+							
 							for (int i=0; i < argRegs.size(); i++)
 							{
 								Storeoutargument storeoutargument = new Storeoutargument(argRegs.get(i), new Immediate(i));
 								currBlock.addInstr(storeoutargument);
+								
+								switch(i)
+								{
+									case 0:	movq = new Movq(argRegs.get(i), new Register("%rdi"));
+											currBlock.addAssembly(movq);
+											break;
+									case 1:	movq = new Movq(argRegs.get(i), new Register("%rsi"));
+											currBlock.addAssembly(movq);
+											break;
+									case 2:	movq = new Movq(argRegs.get(i), new Register("%rdx"));
+											currBlock.addAssembly(movq);
+											break;
+									case 3:	movq = new Movq(argRegs.get(i), new Register("%rcx"));
+											currBlock.addAssembly(movq);
+											break;
+									case 4:	movq = new Movq(argRegs.get(i), new Register("%r8"));
+											currBlock.addAssembly(movq);
+											break;
+									case 5:	movq = new Movq(argRegs.get(i), new Register("%r9"));
+											currBlock.addAssembly(movq);
+											break;
+									default: // store to stack
+											spillArgs++;
+											break;
+								}
+							}
+							
+							if (spillArgs > maxNumArgs)
+							{
+								maxNumArgs = spillArgs;
 							}
 						}
 						
+						// push all caller-saved registers onto stack
+						callerSavePush(currBlock);
+						
+						// Make call to function
 						Call call = new Call(new Label((id!=null?id.getText():null)));
 						currBlock.addInstr(call);
+						currBlock.addAssembly(call);
+						
 						
 						if (!(funcs.get((id!=null?id.getText():null)).getRetType() instanceof Void))
 						{
-							Loadret loadret = new Loadret(new Register(regCounter++));
+							Register targetReg = new Register(regCounter++);
+							
+							Movq movq = new Movq(new Register("%rax"), targetReg);
+							currBlock.addAssembly(movq);
+							
+							Loadret loadret = new Loadret(targetReg);
 							currBlock.addInstr(loadret);
 						}
+						
+						// pop all caller-saved registers off stack
+						callerSavePop(currBlock);
 					
 			}
 
@@ -1999,7 +2258,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "arguments"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:646:1: arguments[String funcName] returns [ArrayList<Register> argRegs = null] : ( ^( ARGS (r1= expression[funcName] )+ ) | ARGS );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:905:1: arguments[String funcName] returns [ArrayList<Register> argRegs = null] : ( ^( ARGS (r1= expression[funcName] )+ ) | ARGS );
 	public final ArrayList<Register> arguments(String funcName) throws RecognitionException {
 		ArrayList<Register> argRegs =  null;
 
@@ -2007,7 +2266,7 @@ public class ControlFlow extends TreeParser {
 		TreeRuleReturnScope r1 =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:647:2: ( ^( ARGS (r1= expression[funcName] )+ ) | ARGS )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:906:2: ( ^( ARGS (r1= expression[funcName] )+ ) | ARGS )
 			int alt18=2;
 			int LA18_0 = input.LA(1);
 			if ( (LA18_0==ARGS) ) {
@@ -2041,14 +2300,14 @@ public class ControlFlow extends TreeParser {
 
 			switch (alt18) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:647:4: ^( ARGS (r1= expression[funcName] )+ )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:906:4: ^( ARGS (r1= expression[funcName] )+ )
 					{
 
 						      argRegs = new ArrayList<Register>();
 						  
 					match(input,ARGS,FOLLOW_ARGS_in_arguments844); 
 					match(input, Token.DOWN, null); 
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:649:13: (r1= expression[funcName] )+
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:908:13: (r1= expression[funcName] )+
 					int cnt17=0;
 					loop17:
 					while (true) {
@@ -2060,7 +2319,7 @@ public class ControlFlow extends TreeParser {
 
 						switch (alt17) {
 						case 1 :
-							// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:649:14: r1= expression[funcName]
+							// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:908:14: r1= expression[funcName]
 							{
 							pushFollow(FOLLOW_expression_in_arguments849);
 							r1=expression(funcName);
@@ -2083,7 +2342,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:650:4: ARGS
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:909:4: ARGS
 					{
 					match(input,ARGS,FOLLOW_ARGS_in_arguments860); 
 					}
@@ -2110,7 +2369,7 @@ public class ControlFlow extends TreeParser {
 
 
 	// $ANTLR start "expression"
-	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:653:1: expression[String funcName] returns [int reg = -1, Type tp = null] : ( ^( AND r1= expression[funcName] r2= expression[funcName] ) | ^( OR r1= expression[funcName] r2= expression[funcName] ) | ^( EQ r1= expression[funcName] r2= expression[funcName] ) | ^( LT r1= expression[funcName] r2= expression[funcName] ) | ^( GT r1= expression[funcName] r2= expression[funcName] ) | ^( NE r1= expression[funcName] r2= expression[funcName] ) | ^( LE r1= expression[funcName] r2= expression[funcName] ) | ^( GE r1= expression[funcName] r2= expression[funcName] ) | ^( PLUS r1= expression[funcName] r2= expression[funcName] ) | ^( MINUS r1= expression[funcName] r2= expression[funcName] ) | ^( TIMES r1= expression[funcName] r2= expression[funcName] ) | ^( DIVIDE r1= expression[funcName] r2= expression[funcName] ) | ^( NOT r1= expression[funcName] ) | ^( NEG r1= expression[funcName] ) | ^( DOT r1= expression[funcName] id= ID ) | ^( INVOKE id= ID argRegs= arguments[funcName] ) |id= ID | INTEGER | TRUE | FALSE | ^( NEW id= ID ) | NULL );
+	// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:912:1: expression[String funcName] returns [int reg = -1, Type tp = null] : ( ^( AND r1= expression[funcName] r2= expression[funcName] ) | ^( OR r1= expression[funcName] r2= expression[funcName] ) | ^( EQ r1= expression[funcName] r2= expression[funcName] ) | ^( LT r1= expression[funcName] r2= expression[funcName] ) | ^( GT r1= expression[funcName] r2= expression[funcName] ) | ^( NE r1= expression[funcName] r2= expression[funcName] ) | ^( LE r1= expression[funcName] r2= expression[funcName] ) | ^( GE r1= expression[funcName] r2= expression[funcName] ) | ^( PLUS r1= expression[funcName] r2= expression[funcName] ) | ^( MINUS r1= expression[funcName] r2= expression[funcName] ) | ^( TIMES r1= expression[funcName] r2= expression[funcName] ) | ^( DIVIDE r1= expression[funcName] r2= expression[funcName] ) | ^( NOT r1= expression[funcName] ) | ^( NEG r1= expression[funcName] ) | ^( DOT r1= expression[funcName] id= ID ) | ^( INVOKE id= ID argRegs= arguments[funcName] ) |id= ID | INTEGER | TRUE | FALSE | ^( NEW id= ID ) | NULL );
 	public final ControlFlow.expression_return expression(String funcName) throws RecognitionException {
 		ControlFlow.expression_return retval = new ControlFlow.expression_return();
 		retval.start = input.LT(1);
@@ -2122,7 +2381,7 @@ public class ControlFlow extends TreeParser {
 		ArrayList<Register> argRegs =null;
 
 		try {
-			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:654:2: ( ^( AND r1= expression[funcName] r2= expression[funcName] ) | ^( OR r1= expression[funcName] r2= expression[funcName] ) | ^( EQ r1= expression[funcName] r2= expression[funcName] ) | ^( LT r1= expression[funcName] r2= expression[funcName] ) | ^( GT r1= expression[funcName] r2= expression[funcName] ) | ^( NE r1= expression[funcName] r2= expression[funcName] ) | ^( LE r1= expression[funcName] r2= expression[funcName] ) | ^( GE r1= expression[funcName] r2= expression[funcName] ) | ^( PLUS r1= expression[funcName] r2= expression[funcName] ) | ^( MINUS r1= expression[funcName] r2= expression[funcName] ) | ^( TIMES r1= expression[funcName] r2= expression[funcName] ) | ^( DIVIDE r1= expression[funcName] r2= expression[funcName] ) | ^( NOT r1= expression[funcName] ) | ^( NEG r1= expression[funcName] ) | ^( DOT r1= expression[funcName] id= ID ) | ^( INVOKE id= ID argRegs= arguments[funcName] ) |id= ID | INTEGER | TRUE | FALSE | ^( NEW id= ID ) | NULL )
+			// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:913:2: ( ^( AND r1= expression[funcName] r2= expression[funcName] ) | ^( OR r1= expression[funcName] r2= expression[funcName] ) | ^( EQ r1= expression[funcName] r2= expression[funcName] ) | ^( LT r1= expression[funcName] r2= expression[funcName] ) | ^( GT r1= expression[funcName] r2= expression[funcName] ) | ^( NE r1= expression[funcName] r2= expression[funcName] ) | ^( LE r1= expression[funcName] r2= expression[funcName] ) | ^( GE r1= expression[funcName] r2= expression[funcName] ) | ^( PLUS r1= expression[funcName] r2= expression[funcName] ) | ^( MINUS r1= expression[funcName] r2= expression[funcName] ) | ^( TIMES r1= expression[funcName] r2= expression[funcName] ) | ^( DIVIDE r1= expression[funcName] r2= expression[funcName] ) | ^( NOT r1= expression[funcName] ) | ^( NEG r1= expression[funcName] ) | ^( DOT r1= expression[funcName] id= ID ) | ^( INVOKE id= ID argRegs= arguments[funcName] ) |id= ID | INTEGER | TRUE | FALSE | ^( NEW id= ID ) | NULL )
 			int alt19=22;
 			switch ( input.LA(1) ) {
 			case AND:
@@ -2242,7 +2501,7 @@ public class ControlFlow extends TreeParser {
 			}
 			switch (alt19) {
 				case 1 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:654:4: ^( AND r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:913:4: ^( AND r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,AND,FOLLOW_AND_in_expression876); 
 					match(input, Token.DOWN, null); 
@@ -2275,7 +2534,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 2 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:671:4: ^( OR r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:930:4: ^( OR r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,OR,FOLLOW_OR_in_expression897); 
 					match(input, Token.DOWN, null); 
@@ -2308,7 +2567,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 3 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:688:4: ^( EQ r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:947:4: ^( EQ r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,EQ,FOLLOW_EQ_in_expression918); 
 					match(input, Token.DOWN, null); 
@@ -2326,33 +2585,39 @@ public class ControlFlow extends TreeParser {
 								retval.reg = regCounter;
 								long val = 0;
 								
-								if (genAssem)
-								{
-									Register targetReg = new Register(regCounter);
+					//			if (genAssem)
+					//			{
+									Register targetReg = new Register(regCounter++);
 									
 									Movq movq = new Movq(new Immediate(val), targetReg);
-									Cmp cmp = new Cmp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)));
-									Cmoveq cmoveq = new Cmoveq(new Immediate(1), targetReg);
+									Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+									Cmp cmp = new Cmp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)));			
+									Cmoveq cmoveq = new Cmoveq(new Register(regCounter), targetReg);
 									
 									currBlock.addAssembly(movq);
+									currBlock.addAssembly(movq2);
 									currBlock.addAssembly(cmp);
 									currBlock.addAssembly(cmoveq);
-								}
+					//			}
 								
-								Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+					//			Register targetReg = new Register(regCounter++);
+								
+								Loadi loadi = new Loadi(new Immediate(val), targetReg);
 								currBlock.addInstr(loadi);
+								
+								Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+								currBlock.addInstr(loadi2);
 								
 								Comp comp = new Comp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register("ccr"));
 								currBlock.addInstr(comp);
 								
-								val = 1;
-								Moveq moveq = new Moveq(new Immediate(val), new Register(regCounter++));
+								Moveq moveq = new Moveq(new Register(regCounter), targetReg);
 								currBlock.addInstr(moveq);
 							
 					}
 					break;
 				case 4 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:716:4: ^( LT r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:981:4: ^( LT r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,LT,FOLLOW_LT_in_expression939); 
 					match(input, Token.DOWN, null); 
@@ -2370,33 +2635,39 @@ public class ControlFlow extends TreeParser {
 								retval.reg = regCounter;
 								long val = 0;
 								
-								if (genAssem)
-								{
-									Register targetReg = new Register(regCounter);
+					//			if (genAssem)
+					//			{
+									Register targetReg = new Register(regCounter++);
 									
 									Movq movq = new Movq(new Immediate(val), targetReg);
-									Cmp cmp = new Cmp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)));
-									Cmovlq cmovlq = new Cmovlq(new Immediate(1), new Register(regCounter));
+									Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+									Cmp cmp = new Cmp(new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)));
+									Cmovlq cmovlq = new Cmovlq(new Register(regCounter), targetReg);
 									
 									currBlock.addAssembly(movq);
+									currBlock.addAssembly(movq2);
 									currBlock.addAssembly(cmp);
 									currBlock.addAssembly(cmovlq);
-								}
+					//			}
 								
-								Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+					//			Register targetReg = new Register(regCounter++);
+								
+								Loadi loadi = new Loadi(new Immediate(val), targetReg);
 								currBlock.addInstr(loadi);
+								
+								Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+								currBlock.addInstr(loadi2);
 								
 								Comp comp = new Comp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register("ccr"));
 								currBlock.addInstr(comp);
 								
-								val = 1;
-								Movlt movlt = new Movlt(new Immediate(val), new Register(regCounter++));
+								Movlt movlt = new Movlt(new Register(regCounter), targetReg);
 								currBlock.addInstr(movlt);
 							
 					}
 					break;
 				case 5 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:744:4: ^( GT r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1015:4: ^( GT r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,GT,FOLLOW_GT_in_expression960); 
 					match(input, Token.DOWN, null); 
@@ -2414,33 +2685,39 @@ public class ControlFlow extends TreeParser {
 								retval.reg = regCounter;
 								long val = 0;
 								
-								if (genAssem)
-								{
-									Register targetReg = new Register(regCounter);
+					//			if (genAssem)
+					//			{
+									Register targetReg = new Register(regCounter++);
 									
 									Movq movq = new Movq(new Immediate(val), targetReg);
-									Cmp cmp = new Cmp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)));
-									Cmovgq cmovgq = new Cmovgq(new Immediate(1), new Register(regCounter));
+									Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+									Cmp cmp = new Cmp(new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)));
+									Cmovgq cmovgq = new Cmovgq(new Register(regCounter), targetReg);
 									
 									currBlock.addAssembly(movq);
+									currBlock.addAssembly(movq2);
 									currBlock.addAssembly(cmp);
 									currBlock.addAssembly(cmovgq);
-								}
+					//			}
 								
-								Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+					//			Register targetReg = new Register(regCounter++);
+								
+								Loadi loadi = new Loadi(new Immediate(val), targetReg);
 								currBlock.addInstr(loadi);
+								
+								Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+								currBlock.addInstr(loadi2);
 								
 								Comp comp = new Comp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register("ccr"));
 								currBlock.addInstr(comp);
 								
-								val = 1;
-								Movgt movgt = new Movgt(new Immediate(val), new Register(regCounter++));
+								Movgt movgt = new Movgt(new Register(regCounter), targetReg);
 								currBlock.addInstr(movgt);
 							
 					}
 					break;
 				case 6 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:772:4: ^( NE r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1049:4: ^( NE r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,NE,FOLLOW_NE_in_expression981); 
 					match(input, Token.DOWN, null); 
@@ -2458,33 +2735,39 @@ public class ControlFlow extends TreeParser {
 								retval.reg = regCounter;
 								long val = 0;
 								
-								if (genAssem)
-								{
-									Register targetReg = new Register(regCounter);
+					//			if (genAssem)
+					//			{
+									Register targetReg = new Register(regCounter++);
 									
 									Movq movq = new Movq(new Immediate(val), targetReg);
-									Cmp cmp = new Cmp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)));
-									Cmovneq cmovneq = new Cmovneq(new Immediate(1), new Register(regCounter));
+									Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+									Cmp cmp = new Cmp(new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)));
+									Cmovneq cmovneq = new Cmovneq(new Register(regCounter), targetReg);
 									
 									currBlock.addAssembly(movq);
+									currBlock.addAssembly(movq2);
 									currBlock.addAssembly(cmp);
 									currBlock.addAssembly(cmovneq);
-								}
+					//			}
 								
-								Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+					//			Register targetReg = new Register(regCounter++);
+								
+								Loadi loadi = new Loadi(new Immediate(val), targetReg);
 								currBlock.addInstr(loadi);
+								
+								Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+								currBlock.addInstr(loadi2);
 								
 								Comp comp = new Comp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register("ccr"));
 								currBlock.addInstr(comp);
 								
-								val = 1;
-								Movne movne = new Movne(new Immediate(val), new Register(regCounter++));
+								Movne movne = new Movne(new Register(regCounter), targetReg);
 								currBlock.addInstr(movne);
 							
 					}
 					break;
 				case 7 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:800:4: ^( LE r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1083:4: ^( LE r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,LE,FOLLOW_LE_in_expression1002); 
 					match(input, Token.DOWN, null); 
@@ -2502,33 +2785,39 @@ public class ControlFlow extends TreeParser {
 								retval.reg = regCounter;
 								long val = 0;
 								
-								if (genAssem)
-								{
-									Register targetReg = new Register(regCounter);
+					//			if (genAssem)
+					//			{
+									Register targetReg = new Register(regCounter++);
 									
 									Movq movq = new Movq(new Immediate(val), targetReg);
-									Cmp cmp = new Cmp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)));
-									Cmovleq cmovleq = new Cmovleq(new Immediate(1), new Register(regCounter));
+									Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+									Cmp cmp = new Cmp(new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)));
+									Cmovleq cmovleq = new Cmovleq(new Register(regCounter), targetReg);
 									
 									currBlock.addAssembly(movq);
+									currBlock.addAssembly(movq2);
 									currBlock.addAssembly(cmp);
 									currBlock.addAssembly(cmovleq);
-								}
+					//			}
 								
-								Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+					//			Register targetReg = new Register(regCounter++);
+								
+								Loadi loadi = new Loadi(new Immediate(val), targetReg);
 								currBlock.addInstr(loadi);
+								
+								Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+								currBlock.addInstr(loadi2);
 								
 								Comp comp = new Comp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register("ccr"));
 								currBlock.addInstr(comp);
 								
-								val = 1;
-								Movle movle = new Movle(new Immediate(val), new Register(regCounter++));
+								Movle movle = new Movle(new Register(regCounter), targetReg);
 								currBlock.addInstr(movle);
 							
 					}
 					break;
 				case 8 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:828:4: ^( GE r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1117:4: ^( GE r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,GE,FOLLOW_GE_in_expression1023); 
 					match(input, Token.DOWN, null); 
@@ -2546,33 +2835,39 @@ public class ControlFlow extends TreeParser {
 								retval.reg = regCounter;
 								long val = 0;
 								
-								if (genAssem)
-								{
-									Register targetReg = new Register(regCounter);
+					//			if (genAssem)
+					//			{
+									Register targetReg = new Register(regCounter++);
 									
 									Movq movq = new Movq(new Immediate(val), targetReg);
-									Cmp cmp = new Cmp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)));
-									Cmovgeq cmovgeq = new Cmovgeq(new Immediate(1), new Register(regCounter));
+									Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+									Cmp cmp = new Cmp(new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)));
+									Cmovgeq cmovgeq = new Cmovgeq(new Register(regCounter), targetReg);
 									
 									currBlock.addAssembly(movq);
+									currBlock.addAssembly(movq2);
 									currBlock.addAssembly(cmp);
 									currBlock.addAssembly(cmovgeq);
-								}
+					//			}
 								
-								Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+					//			Register targetReg = new Register(regCounter++);
+								
+								Loadi loadi = new Loadi(new Immediate(val), targetReg);
 								currBlock.addInstr(loadi);
+								
+								Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+								currBlock.addInstr(loadi2);
 								
 								Comp comp = new Comp(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register("ccr"));
 								currBlock.addInstr(comp);
 								
-								val = 1;
-								Movge movge = new Movge(new Immediate(val), new Register(regCounter++));
+								Movge movge = new Movge(new Register(regCounter), targetReg);
 								currBlock.addInstr(movge);
 							
 					}
 					break;
 				case 9 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:856:4: ^( PLUS r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1151:4: ^( PLUS r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,PLUS,FOLLOW_PLUS_in_expression1044); 
 					match(input, Token.DOWN, null); 
@@ -2605,7 +2900,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 10 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:873:4: ^( MINUS r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1168:4: ^( MINUS r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,MINUS,FOLLOW_MINUS_in_expression1065); 
 					match(input, Token.DOWN, null); 
@@ -2639,7 +2934,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 11 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:891:4: ^( TIMES r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1186:4: ^( TIMES r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,TIMES,FOLLOW_TIMES_in_expression1086); 
 					match(input, Token.DOWN, null); 
@@ -2673,7 +2968,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 12 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:909:4: ^( DIVIDE r1= expression[funcName] r2= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1204:4: ^( DIVIDE r1= expression[funcName] r2= expression[funcName] )
 					{
 					match(input,DIVIDE,FOLLOW_DIVIDE_in_expression1107); 
 					match(input, Token.DOWN, null); 
@@ -2689,13 +2984,23 @@ public class ControlFlow extends TreeParser {
 
 
 								retval.reg = regCounter;
+								
+								Movq movq = new Movq(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register("%rax"));
+								Cqto cqto = new Cqto();
+								Divq divq = new Divq(new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)));
+								Movq movq2 = new Movq(new Register("%rax"), new Register(regCounter));
+								currBlock.addAssembly(movq);
+								currBlock.addAssembly(cqto);
+								currBlock.addAssembly(divq);
+								currBlock.addAssembly(movq2);
+								
 								Div div = new Div(new Register((r1!=null?((ControlFlow.expression_return)r1).reg:0)), new Register((r2!=null?((ControlFlow.expression_return)r2).reg:0)), new Register(regCounter++));
 								currBlock.addInstr(div);
 							
 					}
 					break;
 				case 13 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:915:4: ^( NOT r1= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1220:4: ^( NOT r1= expression[funcName] )
 					{
 					match(input,NOT,FOLLOW_NOT_in_expression1128); 
 					match(input, Token.DOWN, null); 
@@ -2722,7 +3027,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 14 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:930:4: ^( NEG r1= expression[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1235:4: ^( NEG r1= expression[funcName] )
 					{
 					match(input,NEG,FOLLOW_NEG_in_expression1144); 
 					match(input, Token.DOWN, null); 
@@ -2747,7 +3052,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 15 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:943:4: ^( DOT r1= expression[funcName] id= ID )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1248:4: ^( DOT r1= expression[funcName] id= ID )
 					{
 					match(input,DOT,FOLLOW_DOT_in_expression1160); 
 					match(input, Token.DOWN, null); 
@@ -2777,7 +3082,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 16 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:960:4: ^( INVOKE id= ID argRegs= arguments[funcName] )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1265:4: ^( INVOKE id= ID argRegs= arguments[funcName] )
 					{
 					match(input,INVOKE,FOLLOW_INVOKE_in_expression1180); 
 					match(input, Token.DOWN, null); 
@@ -2818,12 +3123,18 @@ public class ControlFlow extends TreeParser {
 											case 5:	movq = new Movq(argRegs.get(i), new Register("%r9"));
 													currBlock.addAssembly(movq);
 													break;
-											default: // spill
+											default: // arguments beyond first 6
+													Pushq pushq = new Pushq(argRegs.get(i));
+													currBlock.addAssembly(pushq);
 													break;
 										}
 									}
 								}
 								
+								// push all caller-saved registers onto stack
+								callerSavePush(currBlock);
+								
+								// Make call to function
 								Call call = new Call(new Label((id!=null?id.getText():null)));
 								currBlock.addInstr(call);
 								currBlock.addAssembly(call);
@@ -2839,11 +3150,14 @@ public class ControlFlow extends TreeParser {
 									Loadret loadret = new Loadret(new Register(regCounter++));
 									currBlock.addInstr(loadret);
 								}
+								
+								// pop all caller-saved registers off stack
+								callerSavePop(currBlock);
 							
 					}
 					break;
 				case 17 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1013:4: id= ID
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1327:4: id= ID
 					{
 					id=(CommonTree)match(input,ID,FOLLOW_ID_in_expression1201); 
 
@@ -2877,7 +3191,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 18 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1042:4: INTEGER
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1356:4: INTEGER
 					{
 					INTEGER1=(CommonTree)match(input,INTEGER,FOLLOW_INTEGER_in_expression1211); 
 					 
@@ -2896,7 +3210,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 19 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1056:4: TRUE
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1370:4: TRUE
 					{
 					match(input,TRUE,FOLLOW_TRUE_in_expression1220); 
 
@@ -2915,7 +3229,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 20 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1070:4: FALSE
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1384:4: FALSE
 					{
 					match(input,FALSE,FOLLOW_FALSE_in_expression1230); 
 					 
@@ -2934,7 +3248,7 @@ public class ControlFlow extends TreeParser {
 					}
 					break;
 				case 21 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1084:4: ^( NEW id= ID )
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1398:4: ^( NEW id= ID )
 					{
 					match(input,NEW,FOLLOW_NEW_in_expression1241); 
 					match(input, Token.DOWN, null); 
@@ -2951,16 +3265,17 @@ public class ControlFlow extends TreeParser {
 								Call call = new Call("malloc");
 								Movq afterMovq = new Movq(new Register("%rax"), targetReg);
 								currBlock.addAssembly(movq);
+								callerSavePush(currBlock);
 								currBlock.addAssembly(call);
 								currBlock.addAssembly(afterMovq);
-								
+								callerSavePop(currBlock);
 								New newStruct = new New(structs.get((id!=null?id.getText():null)), sTypes.getStructTypes((id!=null?id.getText():null)), targetReg);
 								currBlock.addInstr(newStruct); 
 							
 					}
 					break;
 				case 22 :
-					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1101:4: NULL
+					// C:\\eclipse-workspaces\\workspace1\\Compiler\\src\\edu\\calpoly\\mwerner\\compiler\\ControlFlow.g:1416:4: NULL
 					{
 					match(input,NULL,FOLLOW_NULL_in_expression1256); 
 

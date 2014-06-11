@@ -24,21 +24,21 @@ public class Sub extends Instruction
 		return instrName + " " + srcReg1.toString() + ", " + srcReg2.toString() + ", " + targetReg.toString();
 	}
 	
-	public Register getTarget()
-	{
-		return targetReg;
-	}
-	
-	public Register getSource(int srcReg)
-	{
-		if (srcReg == 1)
-		{
-			return srcReg1;
-		}
-		else
-		{
-			return srcReg2;
-		}
-	}
+//	public Register getTarget()
+//	{
+//		return targetReg;
+//	}
+//	
+//	public Register getSource(int srcReg)
+//	{
+//		if (srcReg == 1)
+//		{
+//			return srcReg1;
+//		}
+//		else
+//		{
+//			return srcReg2;
+//		}
+//	}
 
 }

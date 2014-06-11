@@ -4,11 +4,17 @@ public class Movle extends Instruction
 {
 	private String instrName = "movle";
 	private Immediate imm;
-	private Register targetReg;
+	private Register srcReg, targetReg;
 
 	public Movle(Immediate imm, Register targetReg)
 	{
 		this.imm = imm;
+		this.targetReg = targetReg;
+	}
+	
+	public Movle(Register srcReg, Register targetReg)
+	{
+		this.srcReg = srcReg;
 		this.targetReg = targetReg;
 	}
 
@@ -19,6 +25,10 @@ public class Movle extends Instruction
 
 	public String toString()
 	{
+		if (srcReg != null)
+		{
+			return instrName + " " + srcReg.toString() + ", " + targetReg.toString();
+		}
 		return instrName + " " + imm.toString() + ", " + targetReg.toString();
 	}
 
@@ -27,8 +37,8 @@ public class Movle extends Instruction
 		return imm;
 	}
 	
-	public Register getTarget()
-	{
-		return targetReg;
-	}
+//	public Register getTarget()
+//	{
+//		return targetReg;
+//	}
 }

@@ -1,5 +1,7 @@
 package edu.calpoly.mwerner.compiler;
 
+import java.util.Vector;
+
 public class Cmovlq extends Instruction
 {
 	private String instrName = "cmovlq";
@@ -39,13 +41,42 @@ public class Cmovlq extends Instruction
 		return imm;
 	}
 	
-	public Register getTarget()
+//	public Register getTarget()
+//	{
+//		return targetReg;
+//	}
+//	
+//	public Register getSrc()
+//	{
+//		return srcReg;
+//	}
+	
+	public Vector<Register> getSrc()
 	{
-		return targetReg;
+		Vector<Register> sources = new Vector<Register>();
+		
+		if (srcReg != null)
+		{
+			sources.add(srcReg);
+		}
+		
+		if (targetReg != null)
+		{
+			sources.add(targetReg);
+		}
+		
+		return sources;
 	}
 	
-	public Register getSrc()
+	public Vector<Register> getTarget()
 	{
-		return srcReg;
+		Vector<Register> targets = new Vector<Register>();
+		
+		if (targetReg != null)
+		{
+			targets.add(targetReg);
+		}
+		
+		return targets;
 	}
 }

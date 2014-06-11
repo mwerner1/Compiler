@@ -1,9 +1,12 @@
 package edu.calpoly.mwerner.compiler;
 
+import java.util.Vector;
+
 public class Movq extends Instruction
 {
 	private String instrName = "movq";
 	private String var;
+	private String label;
 	private Register srcReg;
 	private Register targetReg;
 	private Immediate imm;
@@ -19,6 +22,12 @@ public class Movq extends Instruction
 	public Movq(Immediate imm, Register targetReg)
 	{
 		this.imm = imm;
+		this.targetReg = targetReg;
+	}
+	
+	public Movq(String label, Register targetReg)
+	{
+		this.label = label;
 		this.targetReg = targetReg;
 	}
 	
@@ -62,13 +71,17 @@ public class Movq extends Instruction
 			}
 			return instrName + " " + var + "(" + srcReg.toString() + "), " + targetReg.toString();
 		}
+		else if (label != null)
+		{
+			return instrName + " $" + label + ", " + targetReg.toString();
+		}
 		else if (disp != null)
 		{
 			if (isStore)
 			{
-				return instrName + " " + srcReg.toString() + ", $" + disp.toString() + "(" + targetReg.toString() + ")";
+				return instrName + " " + srcReg.toString() + ", " + disp.toString() + "(" + targetReg.toString() + ")";
 			}
-			return instrName + " $" + disp.toString() + "(" + srcReg.toString() + "), " + targetReg.toString();
+			return instrName + " " + disp.toString() + "(" + srcReg.toString() + "), " + targetReg.toString();
 		}
 		else if (imm != null)
 		{
@@ -77,9 +90,36 @@ public class Movq extends Instruction
 		else
 		{
 			return instrName + " " + srcReg.toString() + ", " + targetReg.toString();
+		}	
+	}
+	
+	public Vector<Register> getSrc()
+	{
+		Vector<Register> sources = new Vector<Register>();
+		
+		if (srcReg != null)
+		{
+			sources.add(srcReg);
+		}
+		
+		if (targetReg != null && isStore)
+		{
+			sources.add(targetReg);
+		}
+		
+		return sources;
+	}
+	
+	public Vector<Register> getTarget()
+	{
+		Vector<Register> targets = new Vector<Register>();
+		
+		if (targetReg != null && !isStore)
+		{
+			targets.add(targetReg);
 		}
 		
 		
-		
+		return targets;
 	}
 }

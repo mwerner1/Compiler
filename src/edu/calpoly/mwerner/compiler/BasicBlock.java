@@ -64,6 +64,11 @@ public class BasicBlock
 		assembly.add(instr);
 	}
 	
+	public void addAssembly(Instruction instr, int index)
+	{
+		assembly.add(index, instr);
+	}
+	
 	public Instruction getInstr(int index)
 	{
 		return instructions.get(index);

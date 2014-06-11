@@ -1,5 +1,7 @@
 package edu.calpoly.mwerner.compiler;
 
+import java.util.Vector;
+
 public class Andq extends Instruction
 {
 	private String instrName = "andq";
@@ -23,9 +25,38 @@ public class Andq extends Instruction
 	{
 		if (imm != null)
 		{
-			return instrName + " " + imm.toString() + ", " + targetReg.toString();
+			return instrName + " $" + imm.toString() + ", " + targetReg.toString();
 		}
 		
 		return instrName + " " + srcReg.toString() + ", " + targetReg.toString();
+	}
+	
+	public Vector<Register> getSrc()
+	{
+		Vector<Register> sources = new Vector<Register>();
+		
+		if (srcReg != null)
+		{
+			sources.add(srcReg);
+		}
+		
+		if (targetReg != null)
+		{
+			sources.add(targetReg);
+		}
+		
+		return sources;
+	}
+	
+	public Vector<Register> getTarget()
+	{
+		Vector<Register> targets = new Vector<Register>();
+		
+		if (targetReg != null)
+		{
+			targets.add(targetReg);
+		}
+		
+		return targets;
 	}
 }

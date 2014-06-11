@@ -41,6 +41,12 @@ options
    //Hashmap mapping params to to registers
    HashMap<String, Register> paramRegMap = new HashMap<String, Register>();
    
+   //Hashmap mapping functions to max number of args
+   HashMap<String, Integer> maxArgsMap = new HashMap<String, Integer>();
+   
+   //Hashmap mapping functions to their exit blocks
+   HashMap<String, BasicBlock> exitBlocks = new HashMap<String, BasicBlock>();
+   
    //Counter for creating block labels
    int labelCounter, regCounter, argOffsetCtr;
    
@@ -52,6 +58,8 @@ options
    
    //Boolean flag that determines whether or not to generate assembly instructions
    boolean genAssem;
+   
+   int maxNumArgs = 0;
    
    public enum ValCategory
    {
@@ -65,6 +73,90 @@ options
       System.exit(-1);
    }
    
+   // Push callee-saved registers
+   private void calleeSavePush(BasicBlock currBlock)
+   {
+      Pushq pushq = new Pushq(new Register("\%rbx"));
+//      Pushq pushq2 = new Pushq(new Register("\%rsp"));
+//	  Pushq pushq3 = new Pushq(new Register("\%rbp"));
+	  Pushq pushq4 = new Pushq(new Register("\%r12"));
+	  Pushq pushq5 = new Pushq(new Register("\%r13"));
+	  Pushq pushq6 = new Pushq(new Register("\%r14"));
+	  Pushq pushq7 = new Pushq(new Register("\%r15"));
+	  currBlock.addAssembly(pushq);
+//	  currBlock.addAssembly(pushq2);
+//	  currBlock.addAssembly(pushq3);
+	  currBlock.addAssembly(pushq4);
+	  currBlock.addAssembly(pushq5);
+	  currBlock.addAssembly(pushq6);
+	  currBlock.addAssembly(pushq7);
+   }
+   
+   // Pop callee-saved registers
+   private void calleeSavePop(BasicBlock currBlock)
+   {
+      Popq popq = new Popq(new Register("\%r15"));
+	  Popq popq2 = new Popq(new Register("\%r14"));
+	  Popq popq3 = new Popq(new Register("\%r13"));
+	  Popq popq4 = new Popq(new Register("\%r12"));
+//	  Popq popq5 = new Popq(new Register("\%rbp"));
+//	  Popq popq6 = new Popq(new Register("\%rsp"));
+	  Popq popq7 = new Popq(new Register("\%rbx"));
+	  currBlock.addAssembly(popq);
+	  currBlock.addAssembly(popq2);
+	  currBlock.addAssembly(popq3);
+	  currBlock.addAssembly(popq4);
+//	  currBlock.addAssembly(popq5);
+//	  currBlock.addAssembly(popq6);
+	  currBlock.addAssembly(popq7);
+   }
+   
+   // Push caller-saved registers
+   private void callerSavePush(BasicBlock currBlock)
+   {
+      Pushq pushq = new Pushq(new Register("\%rax"));
+      Pushq pushq2 = new Pushq(new Register("\%rcx"));
+	  Pushq pushq3 = new Pushq(new Register("\%rdx"));
+	  Pushq pushq4 = new Pushq(new Register("\%rsi"));
+	  Pushq pushq5 = new Pushq(new Register("\%rdi"));
+	  Pushq pushq6 = new Pushq(new Register("\%r8"));
+	  Pushq pushq7 = new Pushq(new Register("\%r9"));
+	  Pushq pushq8 = new Pushq(new Register("\%r10"));
+	  Pushq pushq9 = new Pushq(new Register("\%r11"));
+	  currBlock.addAssembly(pushq);
+	  currBlock.addAssembly(pushq2);
+	  currBlock.addAssembly(pushq3);
+	  currBlock.addAssembly(pushq4);
+	  currBlock.addAssembly(pushq5);
+	  currBlock.addAssembly(pushq6);
+	  currBlock.addAssembly(pushq7);
+	  currBlock.addAssembly(pushq8);
+	  currBlock.addAssembly(pushq9);
+   }
+   
+   // Pop caller-saved registers
+   private void callerSavePop(BasicBlock currBlock)
+   {
+      Popq popq = new Popq(new Register("\%r11"));
+	  Popq popq2 = new Popq(new Register("\%r10"));
+	  Popq popq3 = new Popq(new Register("\%r9"));
+	  Popq popq4 = new Popq(new Register("\%r8"));
+	  Popq popq5 = new Popq(new Register("\%rdi"));
+	  Popq popq6 = new Popq(new Register("\%rsi"));
+	  Popq popq7 = new Popq(new Register("\%rdx"));
+	  Popq popq8 = new Popq(new Register("\%rcx"));
+	  Popq popq9 = new Popq(new Register("\%rax"));
+	  currBlock.addAssembly(popq);
+	  currBlock.addAssembly(popq2);
+	  currBlock.addAssembly(popq3);
+	  currBlock.addAssembly(popq4);
+	  currBlock.addAssembly(popq5);
+	  currBlock.addAssembly(popq6);
+	  currBlock.addAssembly(popq7);
+	  currBlock.addAssembly(popq8);
+	  currBlock.addAssembly(popq9);
+   }
+   
    public void genAssem(boolean flag)
    {
       genAssem = flag;
@@ -73,6 +165,16 @@ options
    public HashMap<String, Type> getGlobals()
    {
       return sTable.getMapForScope("global");
+   }
+   
+   public int getMaxArgs(String funcName)
+   {
+      return maxArgsMap.get(funcName).intValue();
+   }
+   
+   public BasicBlock getExitBlock(String funcName)
+   {
+      return exitBlocks.get(funcName);
    }
 }
 
@@ -211,8 +313,14 @@ function
 			currBlock.addAssembly(pushq);
 			currBlock.addAssembly(movq);
 			
+			calleeSavePush(currBlock);
+			
 			exitBlock = new BasicBlock("L" + labelCounter++);
 			exitBlock.addInstr(new Ret());
+			
+			exitBlocks.put($id.text, exitBlock);
+			
+			calleeSavePop(exitBlock);
 			
 			Movq endMovq = new Movq(rbp, rsp);
 			Popq popq = new Popq(rbp);
@@ -234,7 +342,30 @@ function
 		 			currBlock.addSuccessor(exitBlock);
 		 			exitBlock.addPredecessor(currBlock);
 		 			
+		 			Jumpi jumpi = new Jumpi(new Label(exitBlock.getLabel()));
+		 			currBlock.addInstr(jumpi);
+		 			
+		 			Jmp jmp = new Jmp(new Label(exitBlock.getLabel()));
+		 			currBlock.addAssembly(jmp);
+		 			
 		 			currBlock = exitBlock;
+		 			
+		 			maxArgsMap.put($id.text, new Integer(maxNumArgs));
+		 			
+//		 			BasicBlock funcBlk = cfgMap.get($id.text);
+//		 			Subq subq = new Subq(new Immediate(8*maxNumArgs), new Register("\%rsp"));
+//		 			funcBlk.addAssembly(subq, 9);
+//		 			
+//		 			Addq addq = new Addq(new Immediate(8*maxNumArgs), new Register("\%rsp"));
+//		 			
+//		 			if (exitBlock.numAssemInstr() > 10)
+//		 			{
+//		 				exitBlock.addAssembly(addq, exitBlock.numAssemInstr()-11);
+//		 			}
+//		 			else
+//		 			{
+//		 				exitBlock.addAssembly(addq, 0);
+//		 			}
 		 		})
 ;
 
@@ -293,13 +424,25 @@ assignment[String funcName]
 			{
 				if (sTable.varPrevDefined(funcName, $x.var))
 				{
-					Mov mov = new Mov(new Register($r1.reg), localRegMap.get($x.var));
+					Register srcReg = new Register($r1.reg);
+					Register targetReg = localRegMap.get($x.var);
+					
+					Movq movq = new Movq(srcReg, targetReg);
+					currBlock.addAssembly(movq);
+					
+					Mov mov = new Mov(srcReg, targetReg);
 					currBlock.addInstr(mov);
 				}
 				//Check params
 				else if (paramRegMap.containsKey($x.var))
 				{
-					Mov mov = new Mov(new Register($r1.reg), paramRegMap.get($x.var));
+					Register srcReg = new Register($r1.reg);
+					Register targetReg = paramRegMap.get($x.var);
+					
+					Movq movq = new Movq(srcReg, targetReg);
+					currBlock.addAssembly(movq);
+					
+					Mov mov = new Mov(srcReg, targetReg);
 					currBlock.addInstr(mov);
 				}
 				//Must be global
@@ -385,58 +528,118 @@ print[String funcName]
 		int flag = 0;
 	}: ^(PRINT r1=expression[funcName] (ENDL 
 		{
-			currBlock.addInstr(new Println(new Register($r1.reg)));
-			currBlock.addAssembly(new Println(new Register($r1.reg))); 
+			Register reg = new Register($r1.reg);
+			Register targetReg = new Register(regCounter++);
+			
+			currBlock.addInstr(new Println(reg));
+			
+			Movq movq = new Movq(".LLC0", new Register("\%rdi"));
+			Movq movq2 = new Movq(reg, new Register("\%rsi"));
+			Movq movq3 = new Movq(new Immediate(0), new Register("\%rax"));
+			
+			Call call = new Call("printf");
+			
+			currBlock.addAssembly(movq);
+			currBlock.addAssembly(movq2);
+			currBlock.addAssembly(movq3);
+			callerSavePush(currBlock);
+			currBlock.addAssembly(call);
+			callerSavePop(currBlock);
+			
 			flag=1;
 		})? 
 		{
 			if (flag==0) 
 			{
-				currBlock.addInstr(new Print(new Register($r1.reg)));
-				currBlock.addAssembly(new Print(new Register($r1.reg)));
+				Register reg = new Register($r1.reg);
+				
+				currBlock.addInstr(new Print(reg));
+				
+				Movq movq = new Movq(".LLC1", new Register("\%rdi"));
+				Movq movq2 = new Movq(reg, new Register("\%rsi"));
+				Movq movq3 = new Movq(new Immediate(0), new Register("\%rax"));
+				Call call = new Call("printf");
+				
+				currBlock.addAssembly(movq);
+				currBlock.addAssembly(movq2);
+				currBlock.addAssembly(movq3);
+				callerSavePush(currBlock);
+				currBlock.addAssembly(call);
+				callerSavePop(currBlock);
 			}
 		})
 ;
 
 read[String funcName]
 	: ^(READ x=lvalue[funcName])
-		{
-			Addi addi = new Addi(new Register("rarp"), $x.var, new Register(regCounter));
-			currBlock.addInstr(addi);
+		{	
+			Register rsi = new Register("\%rsi");
+			Register readReg = new Register(regCounter++);
 			
-			Read read = new Read(new Register(regCounter++));
-			currBlock.addInstr(read);
+			Movq movq = new Movq(".LLC2", new Register("\%rdi"));
+			Movq movq2 = new Movq("glob_rd", new Register("\%rsi"));
+			Movq movq3 = new Movq(new Immediate(0), new Register("\%rax"));
+			Call call = new Call("scanf");
 			
-			Loadai loadai;
+			currBlock.addAssembly(movq);
+			currBlock.addAssembly(movq2);
+			currBlock.addAssembly(movq3);
+			callerSavePush(currBlock);
+			currBlock.addAssembly(call);
+			callerSavePop(currBlock);
+						
+			Read read = new Read(readReg);
+			currBlock.addInstr(read);	
 			
-			//Check local vars
-			if (sTable.varPrevDefined(funcName, $x.var))
-			{
+			if ($x.reg != -1)
+			{	
+				Register targetReg = new Register($x.reg);
 				
-				loadai = new Loadai(new Register("rarp"), $x.var, localRegMap.get($x.var));
+				Vector<String> valList = structVarNames.get(((Struct)$x.tp).structName());
+			
+				int offset = valList.indexOf($x.var) * 8;
+						
+				Movq movq4 = new Movq("glob_rd", new Register("\%rip"), readReg);
+				Movq movq5 = new Movq(readReg, new Immediate(offset), targetReg);
+				currBlock.addAssembly(movq4);
+				currBlock.addAssembly(movq5);
+				
+				Storeai storeai = new Storeai(readReg, targetReg, $x.var);
+				currBlock.addInstr(storeai);
 			}
-			//Check params
-			else if (paramRegMap.containsKey($x.var))
-			{
-				loadai = new Loadai(new Register("rarp"), $x.var, paramRegMap.get($x.var));
-			}
-			//Must be global
 			else
 			{
-				int reg = regCounter;
-				
-				Register targetReg = new Register(regCounter++);
-				
-				Movq movq = new Movq(("glob_" + $x.var), new Register("\%rip"), targetReg);
-				currBlock.addAssembly(movq);
-				
-				Loadglobal loadglobal = new Loadglobal(new Id($x.var), targetReg);
-				currBlock.addInstr(loadglobal);
-				
-				loadai = new Loadai(new Register("rarp"), $x.var, new Register(reg));
+				//Check local vars
+				if (sTable.varPrevDefined(funcName, $x.var))
+				{
+					Mov mov = new Mov(readReg, localRegMap.get($x.var));
+					currBlock.addInstr(mov);
+					
+					Movq movq6 = new Movq("glob_rd", new Register("\%rip"), localRegMap.get($x.var));
+					currBlock.addAssembly(movq6);
+				}
+				//Check params
+				else if (paramRegMap.containsKey($x.var))
+				{
+					Mov mov = new Mov(readReg, paramRegMap.get($x.var));
+					currBlock.addInstr(mov);
+					
+					Movq movq6 = new Movq("glob_rd", new Register("\%rip"), paramRegMap.get($x.var));
+					currBlock.addAssembly(movq6);
+				}
+				//Must be global
+				else
+				{
+					Movq movq6 = new Movq("glob_rd", new Register("\%rip"), readReg);
+					Movq movq7 = new Movq(readReg, ("glob_" + $x.var), new Register("\%rip"));
+					currBlock.addAssembly(movq6);
+					currBlock.addAssembly(movq7);
+	
+					Storeglobal storeglobal = new Storeglobal(readReg, new Id($x.var));
+					currBlock.addInstr(storeglobal);
+					
+				}
 			}
-			
-			currBlock.addInstr(loadai);
 		}
 ;
 
@@ -507,7 +710,7 @@ conditional[String funcName]
 				currBlock.addInstr(jumpimm);
 				
 				jmp = new Jmp(new Label(afterBlock.getLabel()));
-				endThen.addAssembly(jmp);
+				currBlock.addAssembly(jmp);
 			}
 			else if (!(currBlock.getInstr(currBlock.numInstructions()-1) instanceof Ret))
 			{
@@ -515,7 +718,7 @@ conditional[String funcName]
 				currBlock.addInstr(jumpimm);
 				
 				jmp = new Jmp(new Label(afterBlock.getLabel()));
-				endThen.addAssembly(jmp);
+				currBlock.addAssembly(jmp);
 			}
 			
 			afterBlock.addPredecessor(endThen);
@@ -591,6 +794,13 @@ delete[String funcName]
 		{
 			Del del = new Del(new Register($r1.reg));
 			currBlock.addInstr(del);
+			
+			Movq movq = new Movq(new Register($r1.reg), new Register("\%rdi"));
+			Call call = new Call("free");
+			currBlock.addAssembly(movq);
+			callerSavePush(currBlock);
+			currBlock.addAssembly(call);
+			callerSavePop(currBlock);
 		}
 ;
 
@@ -611,11 +821,12 @@ ret[String funcName]
 			
 			Jumpi jumpi = new Jumpi(new Label(exitBlock.getLabel()));
 			currBlock.addInstr(jumpi);
-			
+//			
 			Jmp jmp = new Jmp(new Label(exitBlock.getLabel()));
 			currBlock.addAssembly(jmp);
 			
-			currBlock = new BasicBlock("L" + labelCounter++);
+			//currBlock = new BasicBlock("L" + labelCounter++);
+			//System.out.println("Curr Block: " + currBlock.getLabel());
 
 		}
 ;
@@ -625,21 +836,69 @@ invocation[String funcName]
 		{	
 			if (argRegs != null)
 			{
+				Movq movq;
+				
+				int spillArgs = 0;
+				
 				for (int i=0; i < argRegs.size(); i++)
 				{
 					Storeoutargument storeoutargument = new Storeoutargument(argRegs.get(i), new Immediate(i));
 					currBlock.addInstr(storeoutargument);
+					
+					switch(i)
+					{
+						case 0:	movq = new Movq(argRegs.get(i), new Register("\%rdi"));
+								currBlock.addAssembly(movq);
+								break;
+						case 1:	movq = new Movq(argRegs.get(i), new Register("\%rsi"));
+								currBlock.addAssembly(movq);
+								break;
+						case 2:	movq = new Movq(argRegs.get(i), new Register("\%rdx"));
+								currBlock.addAssembly(movq);
+								break;
+						case 3:	movq = new Movq(argRegs.get(i), new Register("\%rcx"));
+								currBlock.addAssembly(movq);
+								break;
+						case 4:	movq = new Movq(argRegs.get(i), new Register("\%r8"));
+								currBlock.addAssembly(movq);
+								break;
+						case 5:	movq = new Movq(argRegs.get(i), new Register("\%r9"));
+								currBlock.addAssembly(movq);
+								break;
+						default: // store to stack
+								spillArgs++;
+								break;
+					}
+				}
+				
+				if (spillArgs > maxNumArgs)
+				{
+					maxNumArgs = spillArgs;
 				}
 			}
 			
+			// push all caller-saved registers onto stack
+			callerSavePush(currBlock);
+			
+			// Make call to function
 			Call call = new Call(new Label($id.text));
 			currBlock.addInstr(call);
+			currBlock.addAssembly(call);
+			
 			
 			if (!(funcs.get($id.text).getRetType() instanceof Void))
 			{
-				Loadret loadret = new Loadret(new Register(regCounter++));
+				Register targetReg = new Register(regCounter++);
+				
+				Movq movq = new Movq(new Register("\%rax"), targetReg);
+				currBlock.addAssembly(movq);
+				
+				Loadret loadret = new Loadret(targetReg);
 				currBlock.addInstr(loadret);
 			}
+			
+			// pop all caller-saved registers off stack
+			callerSavePop(currBlock);
 		}
 ;
 
@@ -690,27 +949,33 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 			$reg = regCounter;
 			long val = 0;
 			
-			if (genAssem)
-			{
-				Register targetReg = new Register(regCounter);
+//			if (genAssem)
+//			{
+				Register targetReg = new Register(regCounter++);
 				
 				Movq movq = new Movq(new Immediate(val), targetReg);
-				Cmp cmp = new Cmp(new Register($r1.reg), new Register($r2.reg));
-				Cmoveq cmoveq = new Cmoveq(new Immediate(1), targetReg);
+				Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+				Cmp cmp = new Cmp(new Register($r1.reg), new Register($r2.reg));			
+				Cmoveq cmoveq = new Cmoveq(new Register(regCounter), targetReg);
 				
 				currBlock.addAssembly(movq);
+				currBlock.addAssembly(movq2);
 				currBlock.addAssembly(cmp);
 				currBlock.addAssembly(cmoveq);
-			}
+//			}
 			
-			Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+//			Register targetReg = new Register(regCounter++);
+			
+			Loadi loadi = new Loadi(new Immediate(val), targetReg);
 			currBlock.addInstr(loadi);
+			
+			Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+			currBlock.addInstr(loadi2);
 			
 			Comp comp = new Comp(new Register($r1.reg), new Register($r2.reg), new Register("ccr"));
 			currBlock.addInstr(comp);
 			
-			val = 1;
-			Moveq moveq = new Moveq(new Immediate(val), new Register(regCounter++));
+			Moveq moveq = new Moveq(new Register(regCounter), targetReg);
 			currBlock.addInstr(moveq);
 		}
 	| ^(LT r1=expression[funcName] r2=expression[funcName])
@@ -718,27 +983,33 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 			$reg = regCounter;
 			long val = 0;
 			
-			if (genAssem)
-			{
-				Register targetReg = new Register(regCounter);
+//			if (genAssem)
+//			{
+				Register targetReg = new Register(regCounter++);
 				
 				Movq movq = new Movq(new Immediate(val), targetReg);
-				Cmp cmp = new Cmp(new Register($r1.reg), new Register($r2.reg));
-				Cmovlq cmovlq = new Cmovlq(new Immediate(1), new Register(regCounter));
+				Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+				Cmp cmp = new Cmp(new Register($r2.reg), new Register($r1.reg));
+				Cmovlq cmovlq = new Cmovlq(new Register(regCounter), targetReg);
 				
 				currBlock.addAssembly(movq);
+				currBlock.addAssembly(movq2);
 				currBlock.addAssembly(cmp);
 				currBlock.addAssembly(cmovlq);
-			}
+//			}
 			
-			Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+//			Register targetReg = new Register(regCounter++);
+			
+			Loadi loadi = new Loadi(new Immediate(val), targetReg);
 			currBlock.addInstr(loadi);
+			
+			Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+			currBlock.addInstr(loadi2);
 			
 			Comp comp = new Comp(new Register($r1.reg), new Register($r2.reg), new Register("ccr"));
 			currBlock.addInstr(comp);
 			
-			val = 1;
-			Movlt movlt = new Movlt(new Immediate(val), new Register(regCounter++));
+			Movlt movlt = new Movlt(new Register(regCounter), targetReg);
 			currBlock.addInstr(movlt);
 		}
 	| ^(GT r1=expression[funcName] r2=expression[funcName])
@@ -746,27 +1017,33 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 			$reg = regCounter;
 			long val = 0;
 			
-			if (genAssem)
-			{
-				Register targetReg = new Register(regCounter);
+//			if (genAssem)
+//			{
+				Register targetReg = new Register(regCounter++);
 				
 				Movq movq = new Movq(new Immediate(val), targetReg);
-				Cmp cmp = new Cmp(new Register($r1.reg), new Register($r2.reg));
-				Cmovgq cmovgq = new Cmovgq(new Immediate(1), new Register(regCounter));
+				Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+				Cmp cmp = new Cmp(new Register($r2.reg), new Register($r1.reg));
+				Cmovgq cmovgq = new Cmovgq(new Register(regCounter), targetReg);
 				
 				currBlock.addAssembly(movq);
+				currBlock.addAssembly(movq2);
 				currBlock.addAssembly(cmp);
 				currBlock.addAssembly(cmovgq);
-			}
+//			}
 			
-			Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+//			Register targetReg = new Register(regCounter++);
+			
+			Loadi loadi = new Loadi(new Immediate(val), targetReg);
 			currBlock.addInstr(loadi);
+			
+			Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+			currBlock.addInstr(loadi2);
 			
 			Comp comp = new Comp(new Register($r1.reg), new Register($r2.reg), new Register("ccr"));
 			currBlock.addInstr(comp);
 			
-			val = 1;
-			Movgt movgt = new Movgt(new Immediate(val), new Register(regCounter++));
+			Movgt movgt = new Movgt(new Register(regCounter), targetReg);
 			currBlock.addInstr(movgt);
 		}
 	| ^(NE r1=expression[funcName] r2=expression[funcName])
@@ -774,27 +1051,33 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 			$reg = regCounter;
 			long val = 0;
 			
-			if (genAssem)
-			{
-				Register targetReg = new Register(regCounter);
+//			if (genAssem)
+//			{
+				Register targetReg = new Register(regCounter++);
 				
 				Movq movq = new Movq(new Immediate(val), targetReg);
-				Cmp cmp = new Cmp(new Register($r1.reg), new Register($r2.reg));
-				Cmovneq cmovneq = new Cmovneq(new Immediate(1), new Register(regCounter));
+				Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+				Cmp cmp = new Cmp(new Register($r2.reg), new Register($r1.reg));
+				Cmovneq cmovneq = new Cmovneq(new Register(regCounter), targetReg);
 				
 				currBlock.addAssembly(movq);
+				currBlock.addAssembly(movq2);
 				currBlock.addAssembly(cmp);
 				currBlock.addAssembly(cmovneq);
-			}
+//			}
 			
-			Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+//			Register targetReg = new Register(regCounter++);
+			
+			Loadi loadi = new Loadi(new Immediate(val), targetReg);
 			currBlock.addInstr(loadi);
+			
+			Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+			currBlock.addInstr(loadi2);
 			
 			Comp comp = new Comp(new Register($r1.reg), new Register($r2.reg), new Register("ccr"));
 			currBlock.addInstr(comp);
 			
-			val = 1;
-			Movne movne = new Movne(new Immediate(val), new Register(regCounter++));
+			Movne movne = new Movne(new Register(regCounter), targetReg);
 			currBlock.addInstr(movne);
 		}
 	| ^(LE r1=expression[funcName] r2=expression[funcName])
@@ -802,27 +1085,33 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 			$reg = regCounter;
 			long val = 0;
 			
-			if (genAssem)
-			{
-				Register targetReg = new Register(regCounter);
+//			if (genAssem)
+//			{
+				Register targetReg = new Register(regCounter++);
 				
 				Movq movq = new Movq(new Immediate(val), targetReg);
-				Cmp cmp = new Cmp(new Register($r1.reg), new Register($r2.reg));
-				Cmovleq cmovleq = new Cmovleq(new Immediate(1), new Register(regCounter));
+				Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+				Cmp cmp = new Cmp(new Register($r2.reg), new Register($r1.reg));
+				Cmovleq cmovleq = new Cmovleq(new Register(regCounter), targetReg);
 				
 				currBlock.addAssembly(movq);
+				currBlock.addAssembly(movq2);
 				currBlock.addAssembly(cmp);
 				currBlock.addAssembly(cmovleq);
-			}
+//			}
 			
-			Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+//			Register targetReg = new Register(regCounter++);
+			
+			Loadi loadi = new Loadi(new Immediate(val), targetReg);
 			currBlock.addInstr(loadi);
+			
+			Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+			currBlock.addInstr(loadi2);
 			
 			Comp comp = new Comp(new Register($r1.reg), new Register($r2.reg), new Register("ccr"));
 			currBlock.addInstr(comp);
 			
-			val = 1;
-			Movle movle = new Movle(new Immediate(val), new Register(regCounter++));
+			Movle movle = new Movle(new Register(regCounter), targetReg);
 			currBlock.addInstr(movle);
 		}
 	| ^(GE r1=expression[funcName] r2=expression[funcName])
@@ -830,27 +1119,33 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 			$reg = regCounter;
 			long val = 0;
 			
-			if (genAssem)
-			{
-				Register targetReg = new Register(regCounter);
+//			if (genAssem)
+//			{
+				Register targetReg = new Register(regCounter++);
 				
 				Movq movq = new Movq(new Immediate(val), targetReg);
-				Cmp cmp = new Cmp(new Register($r1.reg), new Register($r2.reg));
-				Cmovgeq cmovgeq = new Cmovgeq(new Immediate(1), new Register(regCounter));
+				Movq movq2 = new Movq(new Immediate(1), new Register(regCounter));
+				Cmp cmp = new Cmp(new Register($r2.reg), new Register($r1.reg));
+				Cmovgeq cmovgeq = new Cmovgeq(new Register(regCounter), targetReg);
 				
 				currBlock.addAssembly(movq);
+				currBlock.addAssembly(movq2);
 				currBlock.addAssembly(cmp);
 				currBlock.addAssembly(cmovgeq);
-			}
+//			}
 			
-			Loadi loadi = new Loadi(new Immediate(val), new Register(regCounter));
+//			Register targetReg = new Register(regCounter++);
+			
+			Loadi loadi = new Loadi(new Immediate(val), targetReg);
 			currBlock.addInstr(loadi);
+			
+			Loadi loadi2 = new Loadi(new Immediate(1), new Register(regCounter));
+			currBlock.addInstr(loadi2);
 			
 			Comp comp = new Comp(new Register($r1.reg), new Register($r2.reg), new Register("ccr"));
 			currBlock.addInstr(comp);
 			
-			val = 1;
-			Movge movge = new Movge(new Immediate(val), new Register(regCounter++));
+			Movge movge = new Movge(new Register(regCounter), targetReg);
 			currBlock.addInstr(movge);
 		}
 	| ^(PLUS r1=expression[funcName] r2=expression[funcName])
@@ -909,6 +1204,16 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 	| ^(DIVIDE r1=expression[funcName] r2=expression[funcName])
 		{
 			$reg = regCounter;
+			
+			Movq movq = new Movq(new Register($r1.reg), new Register("\%rax"));
+			Cqto cqto = new Cqto();
+			Divq divq = new Divq(new Register($r2.reg));
+			Movq movq2 = new Movq(new Register("\%rax"), new Register(regCounter));
+			currBlock.addAssembly(movq);
+			currBlock.addAssembly(cqto);
+			currBlock.addAssembly(divq);
+			currBlock.addAssembly(movq2);
+			
 			Div div = new Div(new Register($r1.reg), new Register($r2.reg), new Register(regCounter++));
 			currBlock.addInstr(div);
 		}
@@ -988,12 +1293,18 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 						case 5:	movq = new Movq(argRegs.get(i), new Register("\%r9"));
 								currBlock.addAssembly(movq);
 								break;
-						default: // spill
+						default: // arguments beyond first 6
+								Pushq pushq = new Pushq(argRegs.get(i));
+								currBlock.addAssembly(pushq);
 								break;
 					}
 				}
 			}
 			
+			// push all caller-saved registers onto stack
+			callerSavePush(currBlock);
+			
+			// Make call to function
 			Call call = new Call(new Label($id.text));
 			currBlock.addInstr(call);
 			currBlock.addAssembly(call);
@@ -1009,6 +1320,9 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 				Loadret loadret = new Loadret(new Register(regCounter++));
 				currBlock.addInstr(loadret);
 			}
+			
+			// pop all caller-saved registers off stack
+			callerSavePop(currBlock);
 		}
 	| id=ID 
 		{
@@ -1092,9 +1406,10 @@ expression[String funcName] returns [int reg = -1, Type tp = null]
 			Call call = new Call("malloc");
 			Movq afterMovq = new Movq(new Register("\%rax"), targetReg);
 			currBlock.addAssembly(movq);
+			callerSavePush(currBlock);
 			currBlock.addAssembly(call);
 			currBlock.addAssembly(afterMovq);
-			
+			callerSavePop(currBlock);
 			New newStruct = new New(structs.get($id.text), sTypes.getStructTypes($id.text), targetReg);
 			currBlock.addInstr(newStruct); 
 		}

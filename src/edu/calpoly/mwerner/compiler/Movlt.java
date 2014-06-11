@@ -4,11 +4,17 @@ public class Movlt extends Instruction
 {
 	private String instrName = "movlt";
 	private Immediate imm;
-	private Register targetReg;
+	private Register srcReg, targetReg;
 
 	public Movlt(Immediate imm, Register targetReg)
 	{
 		this.imm = imm;
+		this.targetReg = targetReg;
+	}
+	
+	public Movlt(Register srcReg, Register targetReg)
+	{
+		this.srcReg = srcReg;
 		this.targetReg = targetReg;
 	}
 
@@ -19,6 +25,10 @@ public class Movlt extends Instruction
 
 	public String toString()
 	{
+		if (srcReg != null)
+		{
+			return instrName + " " + srcReg.toString() + ", " + targetReg.toString();
+		}
 		return instrName + " " + imm.toString() + ", " + targetReg.toString();
 	}
 
@@ -27,8 +37,8 @@ public class Movlt extends Instruction
 		return imm;
 	}
 	
-	public Register getTarget()
-	{
-		return targetReg;
-	}
+//	public Register getTarget()
+//	{
+//		return targetReg;
+//	}
 }
